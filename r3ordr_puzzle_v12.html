@@ -1,0 +1,3175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R3ORDR // PUZZLE PROTOCOL</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --black: #0a0a0a;
+    --off-white: #e8e4db;
+    --dirty-beige: #c4b89a;
+    --acid-green: #a8ff3e;
+    --electric-blue: #00d4ff;
+    --crimson: #cc2200;
+    --warning-orange: #ff6b00;
+    --muted-violet: #6b4f7a;
+    --mid-grey: #2a2a2a;
+    --dark-grey: #161616;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--off-white);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* Noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.5;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 28px 40px 20px;
+    border-bottom: 1px solid #222;
+    position: relative;
+  }
+
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--acid-green) 0%, transparent 40%);
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 8px;
+    color: var(--off-white);
+    position: relative;
+    line-height: 1;
+  }
+
+  .logo span { color: var(--acid-green); }
+
+  .logo::before {
+    content: 'R3ORDR';
+    position: absolute;
+    left: 2px; top: 2px;
+    color: var(--crimson);
+    opacity: 0.3;
+    clip-path: polygon(0 30%, 100% 30%, 100% 45%, 0 45%);
+  }
+
+  .header-meta {
+    text-align: right;
+    font-size: 9px;
+    color: #555;
+    line-height: 1.8;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .header-meta .signal {
+    color: var(--acid-green);
+    animation: blink 1.4s step-end infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* SIGNAL BAR */
+  .signal-bar {
+    padding: 8px 40px;
+    background: var(--dark-grey);
+    border-bottom: 1px solid #1a1a1a;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: #3a3a3a;
+    display: flex;
+    gap: 40px;
+    overflow: hidden;
+  }
+
+  .signal-bar span { white-space: nowrap; }
+  .signal-bar .active { color: var(--electric-blue); }
+  .signal-bar .warn { color: var(--warning-orange); }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr 200px;
+    gap: 0;
+    min-height: calc(100vh - 120px);
+  }
+
+  /* LEFT PANEL */
+  .left-panel {
+    border-right: 1px solid #1a1a1a;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .panel-label {
+    font-size: 8px;
+    letter-spacing: 4px;
+    color: #444;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .upload-zone {
+    border: 1px solid #2a2a2a;
+    border-style: dashed;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: #0d0d0d;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--acid-green);
+    background: #0f0f0f;
+  }
+
+  .upload-zone:hover .upload-icon { color: var(--acid-green); }
+
+  .upload-icon {
+    font-size: 28px;
+    color: #333;
+    display: block;
+    margin-bottom: 10px;
+    transition: color 0.2s;
+  }
+
+  .upload-text {
+    font-size: 9px;
+    color: #444;
+    letter-spacing: 2px;
+    line-height: 1.8;
+    text-transform: uppercase;
+  }
+
+  .upload-text strong {
+    display: block;
+    color: var(--dirty-beige);
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  #fileInput { display: none; }
+
+  /* GRID SIZE SELECTOR */
+  .grid-selector { display: flex; flex-direction: column; gap: 8px; }
+
+  .grid-btn {
+    background: none;
+    border: 1px solid #222;
+    color: #555;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    padding: 10px 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .grid-btn:hover, .grid-btn.active {
+    border-color: var(--acid-green);
+    color: var(--acid-green);
+    background: rgba(168, 255, 62, 0.04);
+  }
+
+  .grid-btn .size-tag {
+    float: right;
+    opacity: 0.5;
+    font-size: 8px;
+  }
+
+  /* STATS */
+  .stats { display: flex; flex-direction: column; gap: 10px; }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    padding: 6px 0;
+    border-bottom: 1px solid #151515;
+  }
+
+  .stat-label { color: #444; letter-spacing: 2px; text-transform: uppercase; }
+  .stat-val { color: var(--off-white); font-weight: bold; }
+  .stat-val.green { color: var(--acid-green); }
+  .stat-val.red { color: var(--crimson); }
+  .stat-val.orange { color: var(--warning-orange); }
+
+  /* ACTION BUTTONS */
+  .actions { display: flex; flex-direction: column; gap: 8px; }
+
+  .btn-primary {
+    background: var(--off-white);
+    color: var(--black);
+    border: none;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 4px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .btn-primary:hover {
+    background: var(--acid-green);
+    transform: translateX(2px);
+  }
+
+  .btn-primary:disabled {
+    background: #222;
+    color: #444;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-secondary {
+    background: none;
+    border: 1px solid #2a2a2a;
+    color: #555;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .btn-secondary:hover { border-color: #555; color: var(--off-white); }
+
+  /* CENTER - PUZZLE AREA */
+  .puzzle-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+  }
+
+  .puzzle-header {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 20px;
+  }
+
+  .puzzle-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px;
+    letter-spacing: 6px;
+    color: #333;
+    text-transform: uppercase;
+  }
+
+  .puzzle-subtitle {
+    font-size: 8px;
+    color: #2a2a2a;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  /* DROP ZONE */
+  #dropzone {
+    width: 520px;
+    height: 520px;
+    border: 1px solid #1e1e1e;
+    position: relative;
+    background: #0c0c0c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .empty-state {
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .empty-glyph {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 80px;
+    color: #1a1a1a;
+    display: block;
+    line-height: 1;
+    letter-spacing: 8px;
+  }
+
+  .empty-sub {
+    font-size: 9px;
+    color: #2a2a2a;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-top: 12px;
+  }
+
+  /* PUZZLE GRID */
+  #puzzleGrid {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    gap: 2px;
+    padding: 2px;
+    background: #0c0c0c;
+  }
+
+  .puzzle-piece {
+    cursor: grab;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.1s, box-shadow 0.1s;
+    border: 1px solid #1a1a1a;
+    background: #111;
+  }
+
+  .puzzle-piece:hover {
+    z-index: 10;
+    box-shadow: 0 0 0 1px var(--acid-green);
+    transform: scale(1.02);
+  }
+
+  .puzzle-piece.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+    transform: scale(0.95);
+  }
+
+  .puzzle-piece.drag-over {
+    box-shadow: 0 0 0 2px var(--electric-blue);
+    background: rgba(0, 212, 255, 0.05);
+  }
+
+  .puzzle-piece canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* PIECE INDEX LABEL */
+  .piece-label {
+    position: absolute;
+    bottom: 2px; right: 3px;
+    font-size: 7px;
+    color: rgba(255,255,255,0.15);
+    letter-spacing: 1px;
+    pointer-events: none;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .piece-correct .piece-label { color: var(--acid-green); opacity: 0.6; }
+  .piece-correct { border-color: rgba(168, 255, 62, 0.3) !important; }
+
+  /* PROGRESS BAR */
+  .progress-wrap {
+    width: 100%;
+    max-width: 520px;
+    margin-top: 18px;
+  }
+
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8px;
+    color: #333;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .progress-bar {
+    height: 2px;
+    background: #1a1a1a;
+    position: relative;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--acid-green);
+    width: 0%;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 8px var(--acid-green);
+  }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    border-left: 1px solid #1a1a1a;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .preview-wrap {
+    position: relative;
+  }
+
+  .preview-label {
+    font-size: 7px;
+    color: #2a2a2a;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  #previewCanvas {
+    width: 100%;
+    border: 1px solid #1a1a1a;
+    display: block;
+    opacity: 0.4;
+    transition: opacity 0.3s;
+    filter: grayscale(0.5);
+    image-rendering: pixelated;
+  }
+
+  #previewCanvas.visible { opacity: 0.7; }
+
+  .preview-overlay {
+    position: absolute;
+    inset: 20px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .preview-classify {
+    font-size: 7px;
+    color: var(--crimson);
+    letter-spacing: 3px;
+    opacity: 0.8;
+    transform: rotate(-15deg);
+    border: 1px solid var(--crimson);
+    padding: 3px 6px;
+    opacity: 0.5;
+  }
+
+  /* PROTOCOL LOG */
+  .protocol-log {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .log-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .log-entry {
+    font-size: 8px;
+    color: #2d2d2d;
+    letter-spacing: 1px;
+    line-height: 1.5;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #151515;
+    transition: color 0.4s;
+  }
+
+  .log-entry.new { color: var(--acid-green); }
+  .log-entry.warn { color: var(--warning-orange); }
+  .log-entry.err { color: var(--crimson); }
+
+  .log-ts { opacity: 0.4; margin-right: 4px; }
+
+  /* SOLVE OVERLAY */
+  #solveOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  #solveOverlay.show { display: flex; animation: fadeIn 0.6s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .solve-inner { max-width: 480px; padding: 20px; }
+
+  .solve-code {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    letter-spacing: 12px;
+    color: var(--acid-green);
+    line-height: 1;
+    position: relative;
+    display: inline-block;
+  }
+
+  .solve-code::before {
+    content: 'R3ORDR';
+    position: absolute;
+    left: 3px; top: 3px;
+    color: var(--crimson);
+    opacity: 0.4;
+    clip-path: polygon(0 40%, 100% 40%, 100% 55%, 0 55%);
+  }
+
+  .solve-subtitle {
+    font-size: 10px;
+    letter-spacing: 6px;
+    color: var(--dirty-beige);
+    margin: 16px 0 8px;
+    text-transform: uppercase;
+  }
+
+  .solve-phrase {
+    font-size: 9px;
+    color: #444;
+    letter-spacing: 3px;
+    margin: 6px 0;
+    text-transform: uppercase;
+  }
+
+  .solve-stats {
+    margin: 28px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  .solve-stat {
+    border: 1px solid #222;
+    padding: 16px 8px;
+  }
+
+  .solve-stat-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--off-white);
+    letter-spacing: 2px;
+    display: block;
+  }
+
+  .solve-stat-label {
+    font-size: 7px;
+    color: #444;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .solve-btn {
+    background: none;
+    border: 1px solid var(--acid-green);
+    color: var(--acid-green);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 6px;
+    padding: 14px 32px;
+    cursor: pointer;
+    margin-top: 16px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .solve-btn:hover { background: var(--acid-green); color: var(--black); }
+
+  .scanline {
+    position: fixed;
+    top: -100%;
+    left: 0; right: 0;
+    height: 40%;
+    background: linear-gradient(transparent, rgba(168,255,62,0.02), transparent);
+    animation: scan 4s linear infinite;
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  @keyframes scan { to { top: 140%; } }
+
+  /* Glitch text animation */
+  @keyframes glitch {
+    0%, 100% { clip-path: none; transform: none; }
+    20% { clip-path: polygon(0 20%, 100% 20%, 100% 30%, 0 30%); transform: translateX(-3px); }
+    40% { clip-path: polygon(0 60%, 100% 60%, 100% 70%, 0 70%); transform: translateX(3px); }
+    60% { clip-path: none; transform: none; }
+  }
+
+  .glitch-text { animation: glitch 6s infinite; }
+
+  /* Timer */
+  .timer-display {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 4px;
+    color: var(--off-white);
+  }
+
+  .timer-display.running { color: var(--warning-orange); }
+  .timer-display.done { color: var(--acid-green); }
+
+  /* Shuffle animation */
+  @keyframes shuffleIn {
+    from { opacity: 0; transform: scale(0.8) rotate(var(--r, 0deg)); }
+    to { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
+
+  .piece-shuffle { animation: shuffleIn 0.3s ease forwards; }
+
+  /* EMPTY TILE — permanent acid green pulse glow */
+  @keyframes emptyPulse {
+    0%, 100% { box-shadow: 0 0 0 2px var(--acid-green), 0 0 12px var(--acid-green), inset 0 0 20px rgba(168,255,62,0.08); }
+    50%       { box-shadow: 0 0 0 2px var(--acid-green), 0 0 28px rgba(168,255,62,0.7), inset 0 0 30px rgba(168,255,62,0.18); }
+  }
+
+  .puzzle-piece.empty-tile {
+    background: #050505;
+    animation: emptyPulse 1.4s ease-in-out infinite !important;
+    border-color: var(--acid-green) !important;
+    cursor: default;
+  }
+
+  .puzzle-piece.empty-tile canvas { opacity: 0; }
+  .puzzle-piece.empty-tile .piece-label { display: none; }
+
+  /* ── HINT MODAL ───────────────────────────────────────── */
+  #hintModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0;
+    backdrop-filter: blur(2px);
+  }
+  #hintModal.show { display: flex; animation: fadeIn 0.3s ease; }
+
+  .hint-inner {
+    background: #0d0d0d;
+    border: 1px solid #222;
+    padding: 24px;
+    max-width: 480px;
+    width: 90vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .hint-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .hint-label {
+    font-size: 8px;
+    letter-spacing: 4px;
+    color: #444;
+    text-transform: uppercase;
+  }
+
+  .hint-close {
+    background: none;
+    border: 1px solid #333;
+    color: #555;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 2px;
+    padding: 5px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .hint-close:hover { border-color: #a8ff3e; color: #a8ff3e; }
+
+  #hintCanvas {
+    width: 100%;
+    max-width: 360px;
+    border: 1px solid #1a1a1a;
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  .hint-pin-btn {
+    background: none;
+    border: 1px solid #2a2a2a;
+    color: #555;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 3px;
+    padding: 8px 16px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    width: 100%;
+  }
+  .hint-pin-btn:hover { border-color: #555; color: #e8e4db; }
+  .hint-pin-btn.pinned { border-color: #a8ff3e; color: #a8ff3e; }
+
+  /* ── FLOATING ACTION BAR (mobile) ──────────────────────── */
+  #floatingBar {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #0a0a0a;
+    border-top: 1px solid #1e1e1e;
+    padding: 10px 16px 16px;
+    z-index: 300;
+    gap: 8px;
+    flex-direction: column;
+  }
+
+  .float-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .float-btn {
+    flex: 1;
+    background: none;
+    border: 1px solid #2a2a2a;
+    color: #666;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 11px 8px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .float-btn:hover, .float-btn:active { border-color: #a8ff3e; color: #a8ff3e; }
+
+  .float-btn-primary {
+    flex: 2;
+    background: #e8e4db;
+    border: none;
+    color: #0a0a0a;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 17px;
+    letter-spacing: 4px;
+    padding: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .float-btn-primary:hover { background: #a8ff3e; }
+  .float-btn-primary:disabled { background: #1e1e1e; color: #333; cursor: not-allowed; }
+
+  /* ── LOG COLLAPSIBLE ───────────────────────────────────── */
+  .log-toggle-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: #444;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+    padding: 0;
+    transition: color 0.15s;
+    float: right;
+    margin-top: 1px;
+  }
+  .log-toggle-btn:hover { color: #a8ff3e; }
+  .log-entries.collapsed { display: none; }
+
+  /* ── "SIGNAL LOADED" MODAL ─────────────────────────────── */
+  #signalLoadedModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.90);
+    z-index: 9998;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  #signalLoadedModal.show { display: flex; animation: fadeIn 0.35s ease; }
+
+  .sl-inner {
+    background: #0d0d0d;
+    border: 1px solid #222;
+    padding: 36px 32px;
+    max-width: 380px;
+    width: 88vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    text-align: center;
+    position: relative;
+  }
+
+  .sl-inner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #a8ff3e 50%, transparent);
+  }
+
+  .sl-pfp {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid #a8ff3e;
+    box-shadow: 0 0 20px rgba(168,255,62,0.25);
+    background: #111;
+    flex-shrink: 0;
+  }
+  .sl-pfp img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .sl-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 6px;
+    color: #e8e4db;
+    line-height: 1;
+  }
+
+  .sl-subtitle {
+    font-size: 8px;
+    letter-spacing: 3px;
+    color: #333;
+    text-transform: uppercase;
+    margin-top: -8px;
+  }
+
+  .sl-fragment-btn {
+    width: 100%;
+    background: #a8ff3e;
+    border: none;
+    color: #0a0a0a;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 6px;
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .sl-fragment-btn:hover { background: #fff; transform: translateX(2px); }
+
+  /* ── MOBILE-FIRST LAYOUT OVERHAUL ──────────────────────── */
+  @media (max-width: 768px) {
+    .header { padding: 14px 16px 12px; }
+    .header-meta { display: none; }
+    .logo { font-size: 32px; letter-spacing: 6px; }
+    .signal-bar { display: none; }
+
+    .main { display: flex; flex-direction: column; min-height: auto; }
+
+    .puzzle-area { order: 0; padding: 12px 12px 0; width: 100%; }
+    .puzzle-header { max-width: 100%; margin-bottom: 10px; }
+
+    #dropzone {
+      width: calc(100vw - 24px);
+      height: calc(100vw - 24px);
+      max-width: 520px;
+      max-height: 520px;
+    }
+
+    .progress-wrap { max-width: 100%; }
+
+    .left-panel {
+      order: 2;
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      padding: 20px 16px;
+      gap: 20px;
+    }
+
+    .left-panel > div:first-child { display: none; }
+    .left-panel .actions { display: none; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    .stat-row { padding: 8px 6px; }
+
+    .grid-selector { flex-direction: row; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
+    .grid-btn { white-space: nowrap; flex-shrink: 0; }
+
+    .right-panel {
+      order: 1;
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      padding: 12px 16px 80px;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .preview-wrap { display: none; }
+    .protocol-log { width: 100%; }
+
+    #floatingBar { display: flex; }
+    .log-toggle-btn { display: inline; }
+
+    body { padding-bottom: 80px; }
+  }
+
+  @media (min-width: 769px) {
+    .log-toggle-btn { display: inline; }
+  }
+
+  /* Share button on solve overlay */
+  .solve-share-btn {
+    background: none;
+    border: 1px solid #333;
+    color: #555;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    padding: 10px 24px;
+    cursor: pointer;
+    margin-top: 10px;
+    margin-left: 8px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .solve-share-btn:hover { border-color: var(--electric-blue); color: var(--electric-blue); }
+
+  .solve-x-btn {
+    background: #e8e4db;
+    border: none;
+    color: #0a0a0a;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 5px;
+    padding: 14px 28px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 1;
+  }
+  .solve-x-btn:hover { background: #fff; transform: translateY(-1px); }
+
+  /* Download group — row below */
+  .solve-dl-group {
+    display: flex;
+    gap: 0;
+    width: 100%;
+    border: 1px solid var(--acid-green);
+    margin-top: 0;
+    overflow: hidden;
+  }
+
+  .solve-dl-btn {
+    background: rgba(168,255,62,0.06);
+    border: none;
+    border-right: 1px solid rgba(168,255,62,0.2);
+    color: var(--acid-green);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    letter-spacing: 3px;
+    padding: 13px 0;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    flex: 1;
+    text-align: center;
+  }
+  .solve-dl-btn:last-child { border-right: none; }
+  .solve-dl-btn:hover { background: rgba(168,255,62,0.14); }
+
+  .solve-gif-btn {
+    background: rgba(168,255,62,0.06);
+    border: none;
+    color: var(--acid-green);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    letter-spacing: 3px;
+    padding: 13px 0;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    flex: 1;
+    text-align: center;
+    position: relative;
+  }
+  .solve-gif-btn:hover { background: rgba(168,255,62,0.14); }
+  .solve-gif-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* small icon labels under button text */
+  .btn-sub {
+    display: block;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 7px;
+    letter-spacing: 2px;
+    opacity: 0.45;
+    margin-top: 2px;
+    text-transform: uppercase;
+  }
+
+  /* Recording progress ring */
+  .rec-ring {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--crimson);
+    margin-right: 6px;
+    animation: recBlink 0.8s step-end infinite;
+    vertical-align: middle;
+  }
+  @keyframes recBlink { 50% { opacity: 0; } }
+
+  /* X share toast */
+  #xToast {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border: 1px solid #1e1e1e;
+    background: #0d0d0d;
+    font-size: 9px;
+    color: #555;
+    letter-spacing: 1.5px;
+    line-height: 1.8;
+    text-align: left;
+    position: relative;
+  }
+  #xToast.show { display: block; animation: fadeIn 0.3s ease; }
+  #xToast strong { color: var(--acid-green); display: block; margin-bottom: 4px; letter-spacing: 3px; }
+  #xToast .x-toast-dl {
+    display: inline-block;
+    margin-top: 8px;
+    border: 1px solid #333;
+    color: #888;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 2px;
+    padding: 6px 12px;
+    cursor: pointer;
+    background: none;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  #xToast .x-toast-dl:hover { border-color: var(--acid-green); color: var(--acid-green); }
+</style>
+
+<style>
+/* ═══════════════════════════════════════════════════
+   ONBOARDING OVERLAY — MULTI-PAGE FLOW
+═══════════════════════════════════════════════════ */
+
+#onboardingOverlay {
+  position: fixed;
+  inset: 0;
+  background: #0a0a0a;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  font-family: 'Share Tech Mono', monospace;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#onboardingOverlay.fade-out {
+  animation: onboardFadeOut 0.55s ease forwards;
+}
+@keyframes onboardFadeOut { to { opacity: 0; pointer-events: none; } }
+
+.ob-noise {
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; opacity: 0.5; z-index: 1;
+}
+
+.ob-scanline {
+  position: fixed; top: -100%; left: 0; right: 0; height: 40%;
+  background: linear-gradient(transparent, rgba(168,255,62,0.015), transparent);
+  animation: scan 5s linear infinite; pointer-events: none; z-index: 2;
+}
+
+/* ── Page containers ── */
+.ob-page {
+  display: none;
+  width: 100%;
+  max-width: 460px;
+  padding: 48px 32px 40px;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  position: relative;
+  z-index: 10;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.ob-page.active {
+  display: flex;
+  animation: obFadeIn 0.45s ease forwards;
+}
+
+@keyframes obFadeIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Logo ── */
+.ob-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px;
+  letter-spacing: 10px;
+  color: #e8e4db;
+  line-height: 1;
+  position: relative;
+  margin-bottom: 4px;
+}
+.ob-logo span { color: #a8ff3e; }
+.ob-logo::before {
+  content: 'R3ORDR';
+  position: absolute; left: 3px; top: 3px;
+  color: #cc2200; opacity: 0.22;
+  clip-path: polygon(0 35%, 100% 35%, 100% 52%, 0 52%);
+}
+
+.ob-subtitle {
+  font-size: 8px; letter-spacing: 5px; color: #2a2a2a;
+  text-transform: uppercase; margin-bottom: 32px;
+}
+
+/* ── Step bar ── */
+.ob-step-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 28px; letter-spacing: 3px;
+  font-size: 8px; color: #2a2a2a; text-transform: uppercase;
+  align-self: stretch;
+}
+.ob-step-pip { width: 24px; height: 2px; background: #1a1a1a; transition: all 0.3s; }
+.ob-step-pip.active { background: #a8ff3e; box-shadow: 0 0 6px #a8ff3e; }
+
+/* ── Section label ── */
+.ob-section-label {
+  align-self: stretch; font-size: 8px; letter-spacing: 4px;
+  color: #333; text-transform: uppercase; margin-bottom: 14px;
+}
+
+/* ── Input row ── */
+.ob-input-row { display: flex; align-items: stretch; gap: 0; align-self: stretch; margin-bottom: 20px; }
+
+.ob-input {
+  flex: 1; background: #0d0d0d; border: 1px solid #1e1e1e; border-right: none;
+  color: #e8e4db; font-family: 'Share Tech Mono', monospace; font-size: 13px;
+  letter-spacing: 2px; padding: 14px 16px; outline: none; transition: border-color 0.2s;
+  min-width: 0; -webkit-appearance: none;
+}
+.ob-input::placeholder { color: #2a2a2a; }
+.ob-input:focus { border-color: #a8ff3e; }
+
+.ob-fetch-btn {
+  background: #e8e4db; border: none; color: #0a0a0a;
+  font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 4px;
+  padding: 14px 20px; cursor: pointer; white-space: nowrap; transition: background 0.15s; flex-shrink: 0;
+}
+.ob-fetch-btn:hover { background: #a8ff3e; }
+.ob-fetch-btn:disabled { background: #1e1e1e; color: #333; cursor: not-allowed; }
+
+/* ── Status ── */
+.ob-status {
+  align-self: stretch; font-size: 9px; letter-spacing: 2px; text-align: center;
+  padding: 10px 14px; display: none; animation: obFadeIn 0.3s ease;
+}
+.ob-status.loading { display: block; color: #00d4ff; border: 1px solid #0d2a30; background: #060f12; }
+.ob-status.error   { display: block; color: #cc2200; border: 1px solid #2a0800; background: #0d0400; }
+.ob-status.success { display: block; color: #a8ff3e; border: 1px solid #1a2a08; background: #060d02; }
+
+/* ── PFP result ── */
+#obPfpResult {
+  display: none; flex-direction: column; align-items: center;
+  gap: 18px; align-self: stretch; animation: obFadeIn 0.4s ease;
+}
+.ob-pfp-frame {
+  width: 88px; height: 88px; border-radius: 50%;
+  border: 2px solid #a8ff3e; box-shadow: 0 0 18px rgba(168,255,62,0.28);
+  overflow: hidden; background: #111; flex-shrink: 0;
+}
+.ob-pfp-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ob-pfp-username { font-size: 10px; letter-spacing: 3px; color: #c4b89a; text-transform: uppercase; }
+.ob-pfp-btns { display: flex; flex-direction: column; gap: 10px; align-self: stretch; }
+
+.ob-use-pfp-btn {
+  background: #a8ff3e; border: none; color: #0a0a0a;
+  font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 5px;
+  padding: 15px; cursor: pointer; transition: all 0.15s; text-transform: uppercase;
+}
+.ob-use-pfp-btn:hover { background: #fff; transform: translateX(2px); }
+
+/* ── Vault btn (secondary) ── */
+.ob-vault-btn {
+  background: none; border: 1px solid #2a2a2a; color: #555;
+  font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 3px;
+  padding: 12px; cursor: pointer; transition: all 0.15s; text-transform: uppercase;
+  align-self: stretch; text-align: center;
+}
+.ob-vault-btn:hover { border-color: #a8ff3e; color: #a8ff3e; }
+
+/* ── Divider ── */
+.ob-divider {
+  align-self: stretch; height: 1px; background: #161616; margin: 24px 0; position: relative;
+}
+.ob-divider::before {
+  content: '// OR //'; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  background: #0a0a0a; padding: 0 12px; font-size: 7px; letter-spacing: 4px; color: #1e1e1e;
+}
+
+/* ── Upload btn ── */
+.ob-upload-btn {
+  align-self: stretch; background: none; border: 1px solid #2a2a2a; color: #555;
+  font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 3px;
+  padding: 14px 16px; cursor: pointer; text-transform: uppercase; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.ob-upload-btn:hover { border-color: #a8ff3e; color: #a8ff3e; }
+
+/* ── Reject panel ── */
+#obRejectPanel {
+  display: none; align-self: stretch; flex-direction: column;
+  gap: 10px; animation: obFadeIn 0.3s ease;
+}
+.ob-reject-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+  letter-spacing: 6px; color: #cc2200; text-align: center;
+}
+.ob-reject-msg {
+  font-size: 8px; color: #444; letter-spacing: 2px; text-align: center;
+  text-transform: uppercase; line-height: 2;
+}
+.ob-retry-btn {
+  background: none; border: 1px solid #2a2a2a; color: #555;
+  font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 3px;
+  padding: 11px; cursor: pointer; transition: all 0.15s; text-transform: uppercase;
+}
+.ob-retry-btn:hover { border-color: #a8ff3e; color: #a8ff3e; }
+
+/* ── Glitch line ── */
+.ob-glitch-line {
+  align-self: stretch; height: 1px;
+  background: linear-gradient(90deg, transparent, #a8ff3e 40%, transparent);
+  opacity: 0.18;
+}
+
+/* ── Spinner ── */
+.ob-spinner {
+  display: inline-block; width: 10px; height: 10px;
+  border: 1px solid #00d4ff; border-top-color: transparent;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+  margin-right: 8px; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ════════════════════════════════════════════════
+   PAGE 2 — PROMPT VAULT
+════════════════════════════════════════════════ */
+
+.ob-vault-header {
+  align-self: stretch; margin-bottom: 6px;
+}
+.ob-vault-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 32px;
+  letter-spacing: 8px; color: #e8e4db; line-height: 1;
+}
+.ob-vault-sub {
+  font-size: 8px; letter-spacing: 3px; color: #333;
+  text-transform: uppercase; margin-top: 6px; line-height: 2;
+}
+
+.ob-prompt-cards {
+  display: flex; flex-direction: column; gap: 16px;
+  align-self: stretch; margin-bottom: 24px;
+}
+
+.ob-prompt-card {
+  border: 1px solid #1e1e1e; background: #0d0d0d;
+  padding: 18px 16px 14px; display: flex; flex-direction: column; gap: 12px;
+  transition: border-color 0.2s;
+  position: relative;
+}
+.ob-prompt-card:hover { border-color: #2a2a2a; }
+.ob-prompt-card.recommended { border-color: #1e2e0a; }
+.ob-prompt-card.recommended::before {
+  content: 'RECOMMENDED';
+  position: absolute; top: -1px; right: 16px;
+  background: #a8ff3e; color: #0a0a0a;
+  font-family: 'Bebas Neue', sans-serif; font-size: 10px; letter-spacing: 3px;
+  padding: 2px 8px;
+}
+
+.ob-prompt-card-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 16px;
+  letter-spacing: 5px; color: #c4b89a;
+}
+
+.ob-prompt-text {
+  font-size: 7.5px; color: #2d2d2d; letter-spacing: 1px; line-height: 1.9;
+  max-height: 72px; overflow: hidden; position: relative;
+  font-family: 'Share Tech Mono', monospace;
+  transition: max-height 0.3s ease;
+}
+.ob-prompt-text.expanded { max-height: 600px; }
+.ob-prompt-text::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 28px; background: linear-gradient(transparent, #0d0d0d);
+  transition: opacity 0.3s;
+}
+.ob-prompt-text.expanded::after { opacity: 0; }
+
+.ob-prompt-card-btns {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+
+.ob-copy-btn {
+  flex: 1; min-width: 120px;
+  background: #e8e4db; border: none; color: #0a0a0a;
+  font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 4px;
+  padding: 11px 12px; cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.ob-copy-btn:hover { background: #a8ff3e; }
+.ob-copy-btn.copied { background: #a8ff3e; }
+
+.ob-dl-pfp-btn {
+  flex: 1; min-width: 120px;
+  background: none; border: 1px solid #2a2a2a; color: #555;
+  font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: 2px;
+  padding: 11px 12px; cursor: pointer; transition: all 0.15s; text-align: center;
+  text-transform: uppercase;
+}
+.ob-dl-pfp-btn:hover { border-color: #555; color: #e8e4db; }
+.ob-dl-pfp-btn:disabled { border-color: #1a1a1a; color: #2a2a2a; cursor: not-allowed; }
+
+.ob-expand-btn {
+  background: none; border: none; color: #333; font-family: 'Share Tech Mono', monospace;
+  font-size: 7px; letter-spacing: 2px; cursor: pointer; text-transform: uppercase;
+  padding: 0; text-align: left; transition: color 0.15s; align-self: flex-start;
+}
+.ob-expand-btn:hover { color: #a8ff3e; }
+
+.ob-vault-back {
+  background: none; border: 1px solid #2a2a2a; color: #444;
+  font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: 3px;
+  padding: 11px; cursor: pointer; transition: all 0.15s; text-transform: uppercase;
+  align-self: stretch; text-align: center; margin-bottom: 40px;
+}
+.ob-vault-back:hover { border-color: #555; color: #e8e4db; }
+
+/* ════════════════════════════════════════════════
+   PROMPT COPIED MODAL
+════════════════════════════════════════════════ */
+#obCopiedModal {
+  display: none; position: fixed; inset: 0; z-index: 10000;
+  background: rgba(0,0,0,0.92); align-items: center; justify-content: center;
+  backdrop-filter: blur(3px);
+}
+#obCopiedModal.show { display: flex; animation: obFadeIn 0.3s ease; }
+
+.ob-copied-inner {
+  background: #0d0d0d; border: 1px solid #222;
+  padding: 36px 28px; max-width: 360px; width: 88vw;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; text-align: center; position: relative;
+}
+.ob-copied-inner::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, #a8ff3e 50%, transparent);
+}
+.ob-copied-icon {
+  font-size: 28px; color: #a8ff3e;
+  text-shadow: 0 0 12px rgba(168,255,62,0.6);
+}
+.ob-copied-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 26px;
+  letter-spacing: 6px; color: #e8e4db;
+}
+.ob-copied-msg {
+  font-size: 8px; color: #444; letter-spacing: 2px;
+  text-transform: uppercase; line-height: 2;
+}
+.ob-copied-btns { display: flex; flex-direction: column; gap: 10px; align-self: stretch; }
+
+.ob-continue-btn {
+  background: #a8ff3e; border: none; color: #0a0a0a;
+  font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 5px;
+  padding: 15px; cursor: pointer; transition: all 0.15s;
+}
+.ob-continue-btn:hover { background: #fff; }
+
+.ob-new-img-btn {
+  background: none; border: 1px solid #2a2a2a; color: #555;
+  font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 3px;
+  padding: 12px; cursor: pointer; transition: all 0.15s; text-transform: uppercase;
+}
+.ob-new-img-btn:hover { border-color: #a8ff3e; color: #a8ff3e; }
+
+/* mobile */
+@media (max-width: 480px) {
+  .ob-page { padding: 32px 18px 28px; }
+  .ob-logo { font-size: 38px; letter-spacing: 7px; }
+  .ob-fetch-btn { font-size: 12px; padding: 14px 12px; letter-spacing: 2px; }
+  .ob-input { font-size: 12px; }
+  .ob-vault-title { font-size: 26px; letter-spacing: 5px; }
+  .ob-copy-btn, .ob-dl-pfp-btn { font-size: 12px; min-width: 100px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     ONBOARDING OVERLAY — MULTI-PAGE FLOW
+════════════════════════════════════════════════════════════ -->
+<div id="onboardingOverlay">
+  <div class="ob-noise"></div>
+  <div class="ob-scanline"></div>
+
+  <!-- ══ PAGE 1: LOAD YOUR SIGNAL ══ -->
+  <div class="ob-page active" id="obPage1">
+    <div class="ob-step-bar">
+      <div class="ob-step-pip active" id="obPip1"></div>
+      <div class="ob-step-pip" id="obPip2"></div>
+      <span>STEP 1 OF 2</span>
+    </div>
+
+    <div class="ob-logo">R3<span>ORDR</span></div>
+    <div class="ob-subtitle">PUZZLE PROTOCOL // v0.9.3</div>
+    <div class="ob-glitch-line" style="margin:0 0 28px;align-self:stretch;"></div>
+
+    <div class="ob-section-label">// Load Your Signal</div>
+
+    <div class="ob-input-row">
+      <input class="ob-input" id="obUsernameInput" type="text"
+        placeholder="Enter your X username" maxlength="60"
+        autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="ob-fetch-btn" id="obFetchBtn">FETCH PFP</button>
+    </div>
+
+    <div class="ob-status" id="obStatus"></div>
+
+    <!-- PFP result -->
+    <div id="obPfpResult">
+      <div style="display:flex;align-items:center;gap:18px;align-self:stretch;">
+        <div class="ob-pfp-frame"><img id="obPfpImg" src="" alt="PFP"></div>
+        <div>
+          <div style="font-size:7px;letter-spacing:3px;color:#333;text-transform:uppercase;margin-bottom:4px;">SIGNAL IDENTIFIED</div>
+          <div class="ob-pfp-username" id="obPfpHandle"></div>
+        </div>
+      </div>
+      <div class="ob-pfp-btns">
+        <button class="ob-use-pfp-btn" id="obUsePfpBtn">USE MY X PFP →</button>
+        <button class="ob-vault-btn" id="obOpenVaultBtn">⊞ GENERATE R3ORDR PFP (PROMPT VAULT)</button>
+      </div>
+    </div>
+
+    <div class="ob-divider"></div>
+
+    <div class="ob-section-label">// Upload Custom R3ORDR Image</div>
+
+    <div id="obUploadZone" style="align-self:stretch;">
+      <input type="file" id="obFileInput" accept="image/*" style="display:none;">
+      <button id="obUploadTrigger" class="ob-upload-btn">
+        <span style="font-size:16px;line-height:1;">⊕</span>
+        UPLOAD R3ORDR IMAGE
+      </button>
+    </div>
+
+    <div id="obRejectPanel">
+      <div class="ob-reject-title">SIGNAL REJECTED</div>
+      <div class="ob-reject-msg">Only R3ORDR-generated images are accepted.<br>Deep black / off-white / dirty beige palette.<br>Collage · glitch · crypto visual elements required.</div>
+      <button class="ob-retry-btn" id="obRetryBtn">↺ TRY ANOTHER SIGNAL</button>
+    </div>
+  </div><!-- /obPage1 -->
+
+  <!-- ══ PAGE 2: PROMPT VAULT ══ -->
+  <div class="ob-page" id="obPage2">
+    <div class="ob-step-bar">
+      <div class="ob-step-pip active"></div>
+      <div class="ob-step-pip active"></div>
+      <span>STEP 2 OF 2 — PROMPT VAULT</span>
+    </div>
+
+    <div class="ob-vault-header">
+      <div class="ob-vault-title">R3ORDR<br>PROMPT VAULT</div>
+      <div class="ob-vault-sub">Copy any official prompt below to generate your<br>custom R3ORDR PFP in ChatGPT, Claude or Gemini</div>
+    </div>
+
+    <div class="ob-glitch-line" style="margin:16px 0 24px;align-self:stretch;"></div>
+
+    <div class="ob-prompt-cards" id="obPromptCards">
+
+      <!-- Card 1 -->
+      <div class="ob-prompt-card recommended">
+        <div class="ob-prompt-card-title">MAIN PFP GENERATOR</div>
+        <div class="ob-prompt-text" id="obPT1">Transform the uploaded profile picture into a R3ORDR-style collage portrait. Reconstruct the subject's face and silhouette using torn paper fragments, xerox-grain textures, and layered digital glitch artifacts. Use a strict palette of deep black, dark grey, off-white, and dirty beige — with only micro-accents of acid green or electric blue. Overlay fragmented market data: candlestick charts, orderbook grids, liquidation heatmaps bleeding into the portrait. Include barcodes, QR code fragments, and pixel-cluster glitches scattered at the edges. Add faint protocol text in the background: "R3ORDR", "SIGNAL_LOG", "STRUCTURE REMAINS OPEN". The result should feel like a classified document reconstructed from destroyed archive material — cryptic, dark, premium.</div>
+        <button class="ob-expand-btn" onclick="obExpandPrompt('obPT1',this)">EXPAND PROMPT ▾</button>
+        <div class="ob-prompt-card-btns">
+          <button class="ob-copy-btn" onclick="obCopyPrompt('obPT1',this)">COPY PROMPT</button>
+          <button class="ob-dl-pfp-btn" id="obDlBtn1" onclick="obDownloadPfp()">↓ DOWNLOAD MY X PFP</button>
+        </div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="ob-prompt-card">
+        <div class="ob-prompt-card-title">HEAVY RECONSTRUCTION STYLE</div>
+        <div class="ob-prompt-text" id="obPT2">Take the uploaded profile picture and heavily deconstruct it in the R3ORDR visual language. Fragment the face into overlapping collage layers — torn magazine scraps, offset print registration errors, compression artifact blocks, and analog destruction textures. The palette must remain deep black and off-white with minimal dirty beige tones. Inject floating geometric pixel clusters, broken interface panel fragments, and black marker strokes across the composition. Embed fragmented text: "THE FUTURE IS R3ORDR", "NO COMPLETE ORIGIN RECOVERED", "CONTROL / CHAOS / REORIENTATION" in distressed type. No bright colours. Maximum noise and grain. Feels like a signal intercepted mid-transmission.</div>
+        <button class="ob-expand-btn" onclick="obExpandPrompt('obPT2',this)">EXPAND PROMPT ▾</button>
+        <div class="ob-prompt-card-btns">
+          <button class="ob-copy-btn" onclick="obCopyPrompt('obPT2',this)">COPY PROMPT</button>
+          <button class="ob-dl-pfp-btn" id="obDlBtn2" onclick="obDownloadPfp()">↓ DOWNLOAD MY X PFP</button>
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="ob-prompt-card">
+        <div class="ob-prompt-card-title">TYPOGRAPHIC / LOGO STYLE</div>
+        <div class="ob-prompt-text" id="obPT3">Reimagine the uploaded profile picture as a R3ORDR typographic identity piece. Replace the face with a deconstructed letterform collage — large fragmented text blocks spelling "R3ORDR", "THE SIGNALS ARE STILL MOVING", "SIGNAL_LOG // OPEN" layered over torn paper and xerox grain. Silhouette of the subject remains as a dark ghost shape beneath the type. Deep black background with off-white and dirty beige text. Glitch scan lines cutting horizontally through the composition. Minimal acid green accent on a single character or line. Feels like a propaganda poster from a signal intelligence operation — stripped of colour, heavy on texture and type.</div>
+        <button class="ob-expand-btn" onclick="obExpandPrompt('obPT3',this)">EXPAND PROMPT ▾</button>
+        <div class="ob-prompt-card-btns">
+          <button class="ob-copy-btn" onclick="obCopyPrompt('obPT3',this)">COPY PROMPT</button>
+          <button class="ob-dl-pfp-btn" id="obDlBtn3" onclick="obDownloadPfp()">↓ DOWNLOAD MY X PFP</button>
+        </div>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="ob-prompt-card">
+        <div class="ob-prompt-card-title">CLASSIC REORDER STYLE</div>
+        <div class="ob-prompt-text" id="obPT4">Apply the classic R3ORDR aesthetic to the uploaded profile picture. Keep the overall portrait composition but texture the entire image with heavy photocopy grain, analog noise, and collage paper seams. Dark vignette pushing to pure black at the edges. Face visible but treated — skin tones converted to dirty beige and ash grey. Background filled with faint overlapping document fragments, barcodes, and recursive R3ORDR glyphs. A single torn-edge horizontal band cuts across the mid-section revealing a fragment of a trading chart beneath. Text stamp in the corner: "R3ORDR // AUTHENTICATED SIGNAL". Output should feel premium, editorial, and slightly ominous.</div>
+        <button class="ob-expand-btn" onclick="obExpandPrompt('obPT4',this)">EXPAND PROMPT ▾</button>
+        <div class="ob-prompt-card-btns">
+          <button class="ob-copy-btn" onclick="obCopyPrompt('obPT4',this)">COPY PROMPT</button>
+          <button class="ob-dl-pfp-btn" id="obDlBtn4" onclick="obDownloadPfp()">↓ DOWNLOAD MY X PFP</button>
+        </div>
+      </div>
+
+    </div><!-- /ob-prompt-cards -->
+
+    <button class="ob-vault-back" onclick="obGoPage(1)">← BACK TO SIGNAL LOADER</button>
+
+  </div><!-- /obPage2 -->
+
+  <!-- ══ PROMPT COPIED MODAL ══ -->
+  <div id="obCopiedModal">
+    <div class="ob-copied-inner">
+      <div class="ob-copied-icon">✓</div>
+      <div class="ob-copied-title">PROMPT COPIED</div>
+      <div class="ob-copied-msg">Paste it into ChatGPT, Claude or Gemini.<br>Don't forget to upload your downloaded<br>X PFP as reference image.</div>
+      <div class="ob-copied-btns">
+        <button class="ob-continue-btn" id="obContinueBtn">CONTINUE WITH CURRENT IMAGE</button>
+        <button class="ob-new-img-btn" id="obNewImgBtn">I GENERATED A NEW R3ORDR IMAGE →</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /onboardingOverlay -->
+
+<div class="scanline"></div>
+
+<!-- ═══ SIGNAL LOADED MODAL ═══ -->
+<div id="signalLoadedModal">
+  <div class="sl-inner">
+    <div class="sl-pfp" id="slPfpCircle"><img id="slPfpImg" src="" alt="Signal"></div>
+    <div class="sl-title">SIGNAL LOADED</div>
+    <div class="sl-subtitle">// Ready to Fragment?</div>
+    <button class="sl-fragment-btn" id="slFragmentBtn">FRAGMENT SIGNAL</button>
+  </div>
+</div>
+
+<!-- ═══ HINT MODAL ═══ -->
+<div id="hintModal">
+  <div class="hint-inner">
+    <div class="hint-header">
+      <div class="hint-label">// Origin Signal Reference</div>
+      <button class="hint-close" id="hintCloseBtn">CLOSE ×</button>
+    </div>
+    <canvas id="hintCanvas"></canvas>
+    <button class="hint-pin-btn" id="hintPinBtn">KEEP HINT OPEN</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div>
+    <div class="logo">R3<span>ORDR</span></div>
+    <div style="font-size:8px;color:#333;letter-spacing:3px;margin-top:4px">PUZZLE PROTOCOL // v0.9.3</div>
+  </div>
+  <div class="header-meta">
+    <div><span class="signal">● SIGNAL ACTIVE</span></div>
+    <div>STRUCTURE REMAINS OPEN</div>
+    <div>NODE: FRAG-7-ALPHA</div>
+    <div id="clockDisplay">--:--:--</div>
+  </div>
+  <button id="changeImgBtn" style="
+    background:none; border:1px solid #2a2a2a; color:#555;
+    font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:2px;
+    padding:8px 12px; cursor:pointer; text-transform:uppercase; transition:all 0.15s;
+    white-space:nowrap; align-self:center;
+  " onclick="showOnboarding()"
+     onmouseover="this.style.borderColor='#a8ff3e';this.style.color='#a8ff3e'"
+     onmouseout="this.style.borderColor='#2a2a2a';this.style.color='#555'">
+    ↺ CHANGE IMAGE
+  </button>
+</header>
+
+<!-- SIGNAL BAR -->
+<div class="signal-bar">
+  <span>NO COMPLETE ORIGIN RECOVERED</span>
+  <span class="active">CONTROL / CHAOS / REORIENTATION</span>
+  <span>SIGNAL_LOG :: 0x3A9F</span>
+  <span class="warn">THE SIGNALS ARE STILL MOVING</span>
+  <span>THE FUTURE IS R3ORDR</span>
+  <span>FRAGMENTS: UNRESOLVED</span>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <aside class="left-panel">
+
+    <div>
+      <div class="panel-label">// Upload Signal</div>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <span class="upload-icon">⊞</span>
+        <div class="upload-text">
+          <strong>Drop Image Here</strong>
+          Upload your R3ORDR artwork<br>or any image to fragment
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div>
+      <div class="panel-label">// Fragment Size</div>
+      <div class="grid-selector">
+        <button class="grid-btn" data-size="3">3 × 3 <span class="size-tag">EASY</span></button>
+        <button class="grid-btn active" data-size="4">4 × 4 <span class="size-tag">STANDARD</span></button>
+        <button class="grid-btn" data-size="5">5 × 5 <span class="size-tag">COMPLEX</span></button>
+        <button class="grid-btn" data-size="6">6 × 6 <span class="size-tag">CLASSIFIED</span></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-label">// Session Data</div>
+      <div class="stats">
+        <div class="stat-row">
+          <span class="stat-label">Fragments</span>
+          <span class="stat-val" id="statPieces">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Solved</span>
+          <span class="stat-val green" id="statSolved">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Moves</span>
+          <span class="stat-val orange" id="statMoves">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Elapsed</span>
+          <span class="stat-val timer-display" id="statTimer">00:00</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <div class="panel-label">// Controls</div>
+      <button class="btn-primary" id="scrambleBtn" disabled>FRAGMENT SIGNAL</button>
+      <button class="btn-secondary" id="resetBtn">RESET PROTOCOL</button>
+      <button class="btn-secondary" id="hintBtn" onclick="openHint()">HINT // SIGNAL PULSE</button>
+    </div>
+
+  </aside>
+
+  <!-- CENTER PUZZLE -->
+  <main class="puzzle-area">
+    <div class="puzzle-header">
+      <div>
+        <div class="puzzle-title">RECONSTRUCTION CHAMBER</div>
+        <div class="puzzle-subtitle">DRAG FRAGMENTS // RESTORE ORIGIN</div>
+      </div>
+      <div id="progressPct" style="font-family:'Bebas Neue';font-size:28px;color:#222;letter-spacing:2px">00%</div>
+    </div>
+
+    <div id="dropzone">
+      <div id="emptyState" class="empty-state">
+        <span class="empty-glyph">⊟</span>
+        <div class="empty-sub">Upload image to begin fragmentation</div>
+        <div style="margin-top:20px;font-size:8px;color:#1a1a1a;letter-spacing:4px">R3ORDR // AWAITING SIGNAL</div>
+      </div>
+      <div id="puzzleGrid" style="display:none"></div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-meta">
+        <span>RECONSTRUCTION</span>
+        <span id="progressLabel">0 / 0</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel">
+
+    <div class="preview-wrap">
+      <div class="preview-label">// Origin Signal</div>
+      <canvas id="previewCanvas" width="160" height="160"></canvas>
+      <div class="preview-overlay">
+        <div class="preview-classify">CLASSIFIED</div>
+      </div>
+    </div>
+
+    <div class="protocol-log">
+      <div class="panel-label" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>// Protocol Log</span>
+        <button class="log-toggle-btn" id="logToggleBtn" onclick="toggleLog()">HIDE ▴</button>
+      </div>
+      <div class="log-entries" id="logEntries">
+        <div class="log-entry warn"><span class="log-ts">[BOOT]</span> R3ORDR PROTOCOL INITIALIZED</div>
+        <div class="log-entry"><span class="log-ts">[SYS]</span> AWAITING IMAGE INPUT...</div>
+        <div class="log-entry"><span class="log-ts">[SYS]</span> FRAGMENTATION ENGINE STANDBY</div>
+      </div>
+    </div>
+
+  </aside>
+</div>
+
+<!-- ═══ FLOATING MOBILE ACTION BAR ═══ -->
+<div id="floatingBar">
+  <div class="float-row">
+    <button class="float-btn" onclick="showOnboarding()" style="flex:0 0 auto;padding:11px 14px;">↺ IMG</button>
+    <button class="float-btn-primary" id="floatFragmentBtn" disabled onclick="floatFragment()">FRAGMENT SIGNAL</button>
+    <button class="float-btn" id="floatHintBtn" onclick="openHint()" style="flex:0 0 auto;padding:11px 14px;">HINT</button>
+  </div>
+  <div class="float-row" style="justify-content:center;gap:6px;">
+    <button class="float-btn" id="floatResetBtn" onclick="document.getElementById('resetBtn').click()" style="font-size:8px;">RESET</button>
+    <div style="display:flex;gap:6px;flex:1;">
+      <button class="float-btn" data-size="3" onclick="setGridFromFloat(3)" style="font-size:8px;">3×3</button>
+      <button class="float-btn active-grid" data-size="4" onclick="setGridFromFloat(4)" style="font-size:8px;border-color:#a8ff3e;color:#a8ff3e;">4×4</button>
+      <button class="float-btn" data-size="5" onclick="setGridFromFloat(5)" style="font-size:8px;">5×5</button>
+      <button class="float-btn" data-size="6" onclick="setGridFromFloat(6)" style="font-size:8px;">6×6</button>
+    </div>
+  </div>
+</div>
+
+<!-- SOLVE OVERLAY -->
+<div id="solveOverlay">
+  <div class="solve-inner">
+    <div class="solve-code glitch-text">R3ORDR</div>
+    <div class="solve-subtitle">// SIGNAL RESTORED //</div>
+    <div class="solve-phrase">STRUCTURE REMAINS OPEN</div>
+    <div class="solve-phrase" style="color:#333">THE FUTURE IS R3ORDR</div>
+
+    <div class="solve-stats">
+      <div class="solve-stat">
+        <span class="solve-stat-val" id="finalMoves">—</span>
+        <div class="solve-stat-label">Moves</div>
+      </div>
+      <div class="solve-stat">
+        <span class="solve-stat-val" id="finalTime">—</span>
+        <div class="solve-stat-label">Time</div>
+      </div>
+      <div class="solve-stat">
+        <span class="solve-stat-val" id="finalPieces">—</span>
+        <div class="solve-stat-label">Fragments</div>
+      </div>
+    </div>
+
+    <!-- ANIMATED COLLAGE CANVAS -->
+    <div id="collageWrap" style="display:none;margin:20px 0 12px;position:relative;">
+      <div style="font-size:8px;color:#444;letter-spacing:3px;margin-bottom:8px;text-transform:uppercase">// Signal Collage</div>
+      <canvas id="collageCanvas" style="width:100%;border:1px solid #1e1e1e;display:block;"></canvas>
+      <div id="collageAnimBar" style="position:absolute;bottom:0;left:0;height:2px;background:var(--acid-green);width:0%;transition:none;box-shadow:0 0 8px var(--acid-green);"></div>
+    </div>
+
+    <!-- ACTION ROWS -->
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:18px;width:100%;">
+
+      <!-- Row 1: Play again + Post on X -->
+      <div style="display:flex;gap:6px;">
+        <button class="solve-btn" id="playAgainBtn" style="flex:0 0 auto;padding:14px 20px;">FRAGMENT AGAIN</button>
+        <button class="solve-x-btn" id="shareXBtn">POST ON X</button>
+      </div>
+
+      <!-- Row 2: Downloads — segmented control -->
+      <div class="solve-dl-group">
+        <button class="solve-dl-btn" id="downloadBtn">
+          IMAGE
+          <span class="btn-sub">PNG · still</span>
+        </button>
+        <button class="solve-gif-btn" id="downloadGifBtn">
+          ANIMATION
+          <span class="btn-sub">WEBM · video</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- X share tip toast -->
+    <div id="xToast">
+      <strong>// ATTACH YOUR IMAGE TO THE POST</strong>
+      Download your signal collage and attach it manually to your X post — Twitter doesn't allow direct image injection from external links.
+      <br>
+      <button class="x-toast-dl" id="toastDlBtn">DOWNLOAD IMAGE NOW</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────
+let originalImage = null;
+let gridSize = 4;
+let pieces = []; // array of {correctIndex, currentIndex}
+let pieceCanvases = [];
+let moves = 0;
+let timerInterval = null;
+let startTime = null;
+let elapsed = 0;
+let dragSrc = null;
+let solved = false;
+
+// ─── CLOCK ───────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clockDisplay').textContent =
+    now.toTimeString().slice(0,8);
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── LOG ─────────────────────────────────────────────────
+function addLog(msg, type = '') {
+  const el = document.getElementById('logEntries');
+  const ts = new Date().toTimeString().slice(0,8);
+  const entry = document.createElement('div');
+  entry.className = 'log-entry new' + (type ? ' ' + type : '');
+  entry.innerHTML = `<span class="log-ts">[${ts}]</span> ${msg}`;
+  el.insertBefore(entry, el.firstChild);
+  setTimeout(() => entry.classList.remove('new'), 2000);
+  // keep max 10 entries
+  while (el.children.length > 10) el.removeChild(el.lastChild);
+}
+
+// ─── TIMER ───────────────────────────────────────────────
+function startTimer() {
+  startTime = Date.now() - elapsed;
+  timerInterval = setInterval(() => {
+    elapsed = Date.now() - startTime;
+    const s = Math.floor(elapsed / 1000);
+    const m = Math.floor(s / 60);
+    const timerEl = document.getElementById('statTimer');
+    timerEl.textContent = `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+    timerEl.classList.add('running');
+  }, 500);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  const timerEl = document.getElementById('statTimer');
+  timerEl.classList.remove('running');
+  timerEl.classList.add('done');
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  elapsed = 0;
+  const timerEl = document.getElementById('statTimer');
+  timerEl.textContent = '00:00';
+  timerEl.classList.remove('running','done');
+}
+
+// ─── R3ORDR IMAGE DETECTION (STRICT v2) ─────────────────
+//
+// Scoring gates (all must contribute):
+//   A. Palette gate  — ≤20% "non-protocol" pixels (hard disqualifier)
+//   B. Darkness gate — image must be predominantly dark
+//   C. Complexity    — hard cuts, edge density (collage / glitch texture)
+//   D. Tonal variance— extreme bright/dark contrast typical of collage
+//   E. Accent colour — only muted accents allowed; heavy saturation = fail
+//   F. OCR phrases   — protocol text fragments detected via pixel sampling
+//   G. Grain/noise   — photocopy / xerox grain texture
+//
+// Pass threshold: score ≥ 82
+
+function analyzeR3ordrSignature(img) {
+  const SIZE = 240;
+  const c = document.createElement('canvas');
+  c.width = c.height = SIZE;
+  const ctx = c.getContext('2d');
+  const min = Math.min(img.width, img.height);
+  ctx.drawImage(img, (img.width-min)/2, (img.height-min)/2, min, min, 0, 0, SIZE, SIZE);
+  const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+  const totalPx = SIZE * SIZE;
+
+  // ── Per-pixel counters ────────────────────────────────
+  let darkPx = 0;          // brightness < 60   (deep black / dark grey)
+  let midDarkPx = 0;       // brightness 60-110 (dark grey zones)
+  let neutralPx = 0;       // brightness 110-220, saturation < 0.18 (off-white / dirty beige)
+  let accentPx = 0;        // small colour accents — allowed if rare
+  let offPalettePx = 0;    // bright colours / heavy saturation — forbidden
+  let edgeScore = 0;
+  let hardEdge = 0;
+  let grainScore = 0;      // very small local differences: photocopy grain
+  const brightValues = [];
+  const localDiffs = [];   // for grain texture analysis
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    const bright = r * 0.299 + g * 0.587 + b * 0.114;
+    const maxC = Math.max(r, g, b);
+    const minC = Math.min(r, g, b);
+    const delta = maxC - minC;
+    const sat = maxC === 0 ? 0 : delta / maxC;
+
+    if (i % 12 === 0) brightValues.push(bright);
+
+    // ── Palette classification ──────────────────────────
+    if (bright < 55) {
+      darkPx++;                              // deep black / dark bg
+    } else if (bright < 115) {
+      if (sat < 0.22) midDarkPx++;          // dark grey, muted
+      else accentPx++;                       // coloured mid-tone
+    } else if (bright < 228) {
+      if (sat < 0.18) neutralPx++;          // off-white / dirty beige / grey
+      else if (sat < 0.45) accentPx++;      // muted accent (acid green, electric blue etc.)
+      else offPalettePx++;                   // too saturated — forbidden
+    } else {
+      // very bright (> 228)
+      if (sat < 0.12) neutralPx++;          // pure white text/paper — allowed
+      else offPalettePx++;                   // bright vivid colour — forbidden
+    }
+
+    // ── Edge / complexity analysis ──────────────────────
+    if (i >= 4) {
+      const pr = data[i-4], pg = data[i-3], pb = data[i-2];
+      const diff = Math.abs(r-pr) + Math.abs(g-pg) + Math.abs(b-pb);
+      if (diff > 30)  edgeScore++;
+      if (diff > 110) hardEdge++;
+      // grain: tiny differences (3–18) in adjacent pixels = photocopy texture
+      if (diff >= 3 && diff < 18) grainScore++;
+    }
+  }
+
+  // ── Aggregate metrics ─────────────────────────────────
+  const protocolPx   = darkPx + midDarkPx + neutralPx + accentPx;
+  const offPaletteR  = offPalettePx / totalPx;         // fraction outside palette
+  const darkR        = darkPx / totalPx;               // fraction deep black
+  const edgeR        = edgeScore / totalPx;
+  const hardEdgeR    = hardEdge  / totalPx;
+  const grainR       = grainScore / totalPx;
+  const accentR      = accentPx / totalPx;
+
+  const bMean    = brightValues.reduce((a,v) => a+v, 0) / brightValues.length;
+  const bVariance= brightValues.reduce((a,v) => a+(v-bMean)**2, 0) / brightValues.length;
+  const bStdDev  = Math.sqrt(bVariance);
+
+  // ── HARD DISQUALIFIERS (instant fail) ────────────────
+
+  // 1. Too many off-palette pixels — bright/vivid colours dominate
+  if (offPaletteR > 0.20) {
+    return _fail('PALETTE VIOLATION — TOO MANY BRIGHT OR SATURATED COLOURS', {
+      offPaletteR, darkR, edgeR, hardEdgeR, bStdDev, accentR, grainR });
+  }
+
+  // 2. Not dark enough — R3ORDR is overwhelmingly dark bg
+  if (darkR < 0.18) {
+    return _fail('INSUFFICIENT DARKNESS — R3ORDR REQUIRES DEEP BLACK BACKGROUND', {
+      offPaletteR, darkR, edgeR, hardEdgeR, bStdDev, accentR, grainR });
+  }
+
+  // 3. Too smooth — plain photo or selfie
+  if (edgeR < 0.10 && hardEdgeR < 0.015) {
+    return _fail('TOO SMOOTH — PLAIN PHOTO OR PORTRAIT DETECTED', {
+      offPaletteR, darkR, edgeR, hardEdgeR, bStdDev, accentR, grainR });
+  }
+
+  // 4. Near-monochrome with negligible edges — plain screenshot / text doc
+  if (accentR < 0.01 && darkR < 0.30 && hardEdgeR < 0.025) {
+    return _fail('BLANK SIGNAL — PLAIN SCREENSHOT OR DOCUMENT', {
+      offPaletteR, darkR, edgeR, hardEdgeR, bStdDev, accentR, grainR });
+  }
+
+  // 5. Flat brightness — solid colour fill or simple gradient
+  if (bStdDev < 22 && edgeR < 0.14) {
+    return _fail('FLAT SIGNAL — SOLID COLOUR OR SIMPLE GRADIENT', {
+      offPaletteR, darkR, edgeR, hardEdgeR, bStdDev, accentR, grainR });
+  }
+
+  // ── POSITIVE SCORING ─────────────────────────────────
+  let score = 0;
+
+  // A. Palette purity (max 28 pts) — reward staying in protocol palette
+  if (offPaletteR < 0.04)       score += 28;
+  else if (offPaletteR < 0.08)  score += 20;
+  else if (offPaletteR < 0.12)  score += 12;
+  else if (offPaletteR < 0.20)  score += 5;
+
+  // B. Darkness (max 18 pts) — deep black domination
+  if (darkR > 0.55)       score += 18;
+  else if (darkR > 0.40)  score += 14;
+  else if (darkR > 0.28)  score += 9;
+  else if (darkR > 0.18)  score += 4;
+
+  // C. Hard cuts / collage breaks (max 22 pts)
+  if (hardEdgeR > 0.08)       score += 22;
+  else if (hardEdgeR > 0.05)  score += 16;
+  else if (hardEdgeR > 0.03)  score += 10;
+  else if (hardEdgeR > 0.015) score += 5;
+
+  // D. Tonal variance — extreme dark/light contrast (max 18 pts)
+  if (bStdDev > 72)       score += 18;
+  else if (bStdDev > 55)  score += 13;
+  else if (bStdDev > 38)  score += 7;
+  else if (bStdDev > 22)  score += 3;
+
+  // E. Accent colour presence — small but present (max 8 pts)
+  //    R3ORDR has acid green / electric blue / crimson splashes (1-12%)
+  if (accentR > 0.01 && accentR < 0.18)       score += 8;
+  else if (accentR > 0.005 && accentR < 0.25) score += 4;
+  else if (accentR >= 0.18)                    score -= 4; // too much colour
+
+  // F. Grain / photocopy texture (max 6 pts)
+  if (grainR > 0.30)       score += 6;
+  else if (grainR > 0.20)  score += 4;
+  else if (grainR > 0.12)  score += 2;
+
+  // G. General edge complexity — collage layering (max 12 pts)
+  if (edgeR > 0.32)       score += 12;
+  else if (edgeR > 0.22)  score += 8;
+  else if (edgeR > 0.14)  score += 4;
+  else if (edgeR > 0.10)  score += 2;
+
+  // ── OCR: protocol phrase detection via ASCII pixel sampling ──
+  // We use the Anthropic API for a lightweight vision check
+  // on whether the image contains R3ORDR protocol text fragments.
+  // This runs asynchronously and is stored in a shared result.
+  // (Async call wired separately — see _runOCRBoost below)
+
+  score = Math.min(100, Math.max(0, score));
+
+  const pass = score >= 82;
+  const reason = pass ? null : `SIGNAL SCORE ${score}/100 — BELOW PROTOCOL THRESHOLD (82)`;
+
+  return {
+    score,
+    pass,
+    reason,
+    offPaletteR: Math.round(offPaletteR * 100),
+    darkR:        Math.round(darkR * 100),
+    edgeR:        Math.round(edgeR * 100),
+    hardEdgeR:    Math.round(hardEdgeR * 100),
+    bStdDev:      Math.round(bStdDev),
+    accentR:      Math.round(accentR * 100),
+    grainR:       Math.round(grainR * 100),
+  };
+}
+
+// ── Vision-model booster (async, adds up to +18 pts) ────────
+// Sends a tiny 96×96 JPEG crop to the Anthropic API asking:
+// "Does this image match the R3ORDR aesthetic?"
+// Returns a promise that resolves to a score delta (0–18).
+async function _runVisionBoost(img) {
+  try {
+    const c = document.createElement('canvas');
+    c.width = c.height = 96;
+    const ctx = c.getContext('2d');
+    const min = Math.min(img.width, img.height);
+    ctx.drawImage(img, (img.width-min)/2, (img.height-min)/2, min, min, 0, 0, 96, 96);
+    const b64 = c.toDataURL('image/jpeg', 0.7).split(',')[1];
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 60,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
+            { type: 'text', text: 'Score 0-18 only (integer, no other text): Does this image show a dark/black-background digital collage with glitch art, torn paper, market charts, protocol text, or crypto aesthetic? Higher = more matching. 0 = plain photo/selfie/screenshot.' }
+          ]
+        }]
+      })
+    });
+    const json = await res.json();
+    const raw = (json.content?.[0]?.text || '0').trim();
+    const delta = Math.min(18, Math.max(0, parseInt(raw) || 0));
+    return delta;
+  } catch (_) { return 0; }
+}
+
+// Helper for hard-fail returns
+function _fail(reason, metrics) {
+  return {
+    score: 0, pass: false, reason,
+    offPaletteR: Math.round((metrics.offPaletteR||0)*100),
+    darkR:        Math.round((metrics.darkR||0)*100),
+    edgeR:        Math.round((metrics.edgeR||0)*100),
+    hardEdgeR:    Math.round((metrics.hardEdgeR||0)*100),
+    bStdDev:      Math.round(metrics.bStdDev||0),
+    accentR:      Math.round((metrics.accentR||0)*100),
+    grainR:       Math.round((metrics.grainR||0)*100),
+  };
+}
+
+function showRejection(sig) {
+  addLog('SIGNAL AUTHENTICATION FAILED', 'warn');
+  addLog(sig.reason || `AUTH SCORE: ${sig.score}/100 — NOT R3ORDR`, 'warn');
+
+  const checks = [
+    ['PALETTE',      (100 - (sig.offPaletteR||0)) + '%',  (sig.offPaletteR||99) < 20 ],
+    ['DARKNESS',     (sig.darkR||0)     + '%',  (sig.darkR||0) >= 18 ],
+    ['HARD CUTS',    (sig.hardEdgeR||0) + '%',  (sig.hardEdgeR||0) >= 3  ],
+    ['TONAL RANGE',  (sig.bStdDev||0)   + ' σ', (sig.bStdDev||0) >= 38 ],
+    ['GRAIN/GLITCH', (sig.grainR||0)    + '%',  (sig.grainR||0) >= 12 ],
+    ['ACCENT CLR',   (sig.accentR||0)   + '%',  (sig.accentR||0) >= 1 && (sig.accentR||0) < 25 ],
+  ];
+
+  const rows = checks.map(([label, val, pass]) => `
+    <div style="font-size:7px;color:#2a2a2a;letter-spacing:2px;font-family:'Share Tech Mono',monospace;padding:3px 0;">${label}</div>
+    <div style="font-size:7px;color:${pass?'var(--acid-green)':'var(--crimson)'};letter-spacing:2px;font-family:'Share Tech Mono',monospace;padding:3px 0;">${val} ${pass?'✓':'✗'}</div>
+  `).join('');
+
+  const reasonLine = sig.reason
+    ? `<div style="font-size:8px;color:var(--crimson);letter-spacing:2px;margin-bottom:12px;font-family:'Share Tech Mono',monospace;">${sig.reason}</div>`
+    : '';
+
+  document.getElementById('uploadZone').innerHTML = `
+    <div style="text-align:center;padding:20px 10px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--crimson);letter-spacing:6px;margin-bottom:6px;">SIGNAL REJECTED</div>
+      <div style="font-size:8px;color:#555;letter-spacing:2px;margin-bottom:10px;font-family:'Share Tech Mono',monospace;line-height:1.9;">This is not a valid R3ORDR signal.<br>Please upload an image generated with the official R3ORDR protocol prompt<br>(deep black/off-white collage with market fragments and protocol text).</div>
+      ${reasonLine}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;max-width:280px;margin:0 auto 14px;text-align:left;border-top:1px solid #1a1a1a;padding-top:10px;">
+        ${rows}
+      </div>
+      <button onclick="resetUploadZone()" style="background:none;border:1px solid #333;color:#555;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:3px;padding:9px 18px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--acid-green)';this.style.color='var(--acid-green)'" onmouseout="this.style.borderColor='#333';this.style.color='#555'">TRY ANOTHER SIGNAL</button>
+    </div>`;
+}
+
+function resetUploadZone() {
+  const zone = document.getElementById('uploadZone');
+  zone.innerHTML = `
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+    <div class="upload-icon">⬡</div>
+    <div class="upload-text">DROP R3ORDR IMAGE</div>
+    <div class="upload-sub">or click to select signal</div>`;
+  // re-bind the file input
+  document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+  zone.addEventListener('click', () => document.getElementById('fileInput').click());
+  originalImage = null;
+  document.getElementById('scrambleBtn').disabled = true;
+  document.getElementById('emptyState').style.display = '';
+}
+
+// ─── FILE UPLOAD ─────────────────────────────────────────
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      addLog(`SCANNING SIGNAL // ${img.width}×${img.height}px`);
+      const sig = analyzeR3ordrSignature(img);
+      addLog(`AUTH SCORE: ${sig.score}/100`);
+
+      if (!sig.pass) {
+        showRejection(sig);
+        return;
+      }
+
+      originalImage = img;
+      drawPreview(img);
+      document.getElementById('scrambleBtn').disabled = false;
+      document.getElementById('emptyState').style.display = 'none';
+      addLog('SIGNAL AUTHENTICATED // R3ORDR CONFIRMED', 'new');
+      addLog('FRAGMENTATION ENGINE READY');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+// Drag-drop on upload zone
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.style.borderColor = 'var(--acid-green)'; });
+uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = ''; });
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = e.dataTransfer;
+    document.getElementById('fileInput').files = dt.files;
+    document.getElementById('fileInput').dispatchEvent(new Event('change'));
+  }
+});
+
+// ─── PREVIEW ─────────────────────────────────────────────
+function drawPreview(img) {
+  const canvas = document.getElementById('previewCanvas');
+  const ctx = canvas.getContext('2d');
+  const size = 160;
+  canvas.width = size; canvas.height = size;
+  // draw square crop
+  const min = Math.min(img.width, img.height);
+  const sx = (img.width - min) / 2;
+  const sy = (img.height - min) / 2;
+  ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+  canvas.classList.add('visible');
+}
+
+// ─── GRID SIZE ────────────────────────────────────────────
+document.querySelectorAll('.grid-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.grid-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    gridSize = parseInt(btn.dataset.size);
+    addLog(`GRID SIZE SET // ${gridSize}×${gridSize}`);
+    if (originalImage) buildPuzzle();
+  });
+});
+
+// ─── BUILD PUZZLE ─────────────────────────────────────────
+document.getElementById('scrambleBtn').addEventListener('click', () => {
+  if (!originalImage) return;
+  buildPuzzle();
+});
+
+function buildPuzzle() {
+  solved = false;
+  moves = 0;
+  resetTimer();
+  document.getElementById('statMoves').textContent = '0';
+
+  const n = gridSize;
+  const total = n * n;
+  document.getElementById('statPieces').textContent = total;
+  document.getElementById('statSolved').textContent = '0';
+  document.getElementById('progressLabel').textContent = `0 / ${total - 1}`;
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressPct').textContent = '00%';
+  document.getElementById('progressPct').style.color = '#222';
+
+  // Slice image into pieces
+  const pieceSize = 512 / n;
+  pieceCanvases = [];
+
+  const min = Math.min(originalImage.width, originalImage.height);
+  const sx0 = (originalImage.width - min) / 2;
+  const sy0 = (originalImage.height - min) / 2;
+
+  for (let i = 0; i < total; i++) {
+    const col = i % n;
+    const row = Math.floor(i / n);
+    const c = document.createElement('canvas');
+    c.width = c.height = Math.round(pieceSize);
+    const ctx = c.getContext('2d');
+    ctx.drawImage(
+      originalImage,
+      sx0 + (col / n) * min, sy0 + (row / n) * min,
+      min / n, min / n,
+      0, 0, c.width, c.height
+    );
+    pieceCanvases.push(c);
+  }
+
+  // Shuffle indices (guaranteed solvable via random swaps)
+  pieces = Array.from({length: total}, (_, i) => i);
+  // Fisher-Yates
+  for (let i = total - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+  }
+
+  renderGrid();
+  captureScrambledSnapshot();
+  addLog(`FRAGMENTATION COMPLETE // ${total} FRAGMENTS`);
+  addLog('BEGIN RECONSTRUCTION...');
+  startTimer();
+}
+
+// ─── RENDER GRID ──────────────────────────────────────────
+function renderGrid() {
+  const n = gridSize;
+  const grid = document.getElementById('puzzleGrid');
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+  grid.innerHTML = '';
+
+  // The "empty" slot is wherever piece 0 (top-left correct piece) currently sits
+  // It acts as the blank tile — glows acid green
+  const emptyCurrentIdx = pieces.indexOf(0);
+
+  pieces.forEach((correctIdx, currentIdx) => {
+    const pieceEl = document.createElement('div');
+    const isEmpty = (currentIdx === emptyCurrentIdx);
+
+    pieceEl.className = 'puzzle-piece piece-shuffle';
+    pieceEl.style.setProperty('--r', `${(Math.random()-0.5)*8}deg`);
+    pieceEl.dataset.current = currentIdx;
+
+    if (isEmpty) {
+      pieceEl.classList.add('empty-tile');
+      pieceEl.draggable = false;
+    } else {
+      pieceEl.draggable = true;
+    }
+
+    const canvas = pieceCanvases[correctIdx].cloneNode(true);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(pieceCanvases[correctIdx], 0, 0);
+    pieceEl.appendChild(canvas);
+
+    const label = document.createElement('div');
+    label.className = 'piece-label';
+    label.textContent = String(currentIdx).padStart(2,'0');
+    pieceEl.appendChild(label);
+
+    if (!isEmpty && correctIdx === currentIdx) {
+      pieceEl.classList.add('piece-correct');
+    }
+
+    if (!isEmpty) {
+      // Drag events
+      pieceEl.addEventListener('dragstart', onDragStart);
+      pieceEl.addEventListener('dragover', onDragOver);
+      pieceEl.addEventListener('drop', onDrop);
+      pieceEl.addEventListener('dragend', onDragEnd);
+      pieceEl.addEventListener('dragleave', onDragLeave);
+      // Touch events
+      pieceEl.addEventListener('touchstart', onTouchStart, {passive:true});
+      pieceEl.addEventListener('touchend', onTouchEnd);
+    } else {
+      // empty tile can receive drops
+      pieceEl.addEventListener('dragover', onDragOver);
+      pieceEl.addEventListener('drop', onDrop);
+      pieceEl.addEventListener('dragleave', onDragLeave);
+      pieceEl.addEventListener('touchend', onTouchEnd);
+    }
+
+    grid.appendChild(pieceEl);
+  });
+}
+
+// ─── DRAG & DROP ──────────────────────────────────────────
+function onDragStart(e) {
+  dragSrc = this;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', this.dataset.current);
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  this.classList.add('drag-over');
+}
+
+function onDragLeave() { this.classList.remove('drag-over'); }
+function onDragEnd() { this.classList.remove('dragging'); }
+
+function onDrop(e) {
+  e.preventDefault();
+  this.classList.remove('drag-over');
+  if (dragSrc === this || solved) return;
+
+  const fromIdx = parseInt(dragSrc.dataset.current);
+  const toIdx = parseInt(this.dataset.current);
+
+  // Swap in pieces array
+  [pieces[fromIdx], pieces[toIdx]] = [pieces[toIdx], pieces[fromIdx]];
+
+  moves++;
+  document.getElementById('statMoves').textContent = moves;
+  addLog(`SWAP [${String(fromIdx).padStart(2,'0')}]↔[${String(toIdx).padStart(2,'0')}]`);
+
+  renderGrid();
+  checkProgress();
+}
+
+// ─── CHECK PROGRESS ───────────────────────────────────────
+function checkProgress() {
+  const total = gridSize * gridSize;
+  const emptyCurrentIdx = pieces.indexOf(0);
+  let correct = 0;
+  pieces.forEach((val, idx) => {
+    if (idx === emptyCurrentIdx) return; // don't count the empty tile
+    if (val === idx) correct++;
+  });
+  const displayTotal = total - 1; // exclude empty tile from count
+
+  document.getElementById('statSolved').textContent = correct;
+  document.getElementById('progressLabel').textContent = `${correct} / ${displayTotal}`;
+  const pct = Math.round((correct / displayTotal) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = String(pct).padStart(2,'0') + '%';
+
+  if (pct > 50) document.getElementById('progressPct').style.color = 'var(--warning-orange)';
+  if (pct > 80) document.getElementById('progressPct').style.color = 'var(--acid-green)';
+
+  if (correct === displayTotal) triggerSolve();
+}
+
+// ─── SOLVE ────────────────────────────────────────────────
+function triggerSolve() {
+  solved = true;
+  stopTimer();
+
+  const s = Math.floor(elapsed / 1000);
+  const m = Math.floor(s / 60);
+  const timeStr = `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+
+  document.getElementById('finalMoves').textContent = moves;
+  document.getElementById('finalTime').textContent = timeStr;
+  document.getElementById('finalPieces').textContent = gridSize * gridSize;
+
+  addLog('SIGNAL FULLY RESTORED', 'new');
+  addLog('NO COMPLETE ORIGIN RECOVERED', 'warn');
+
+  setTimeout(() => {
+    startCollageAnimation();
+    document.getElementById('solveOverlay').classList.add('show');
+  }, 600);
+}
+
+// ─── HINT ─────────────────────────────────────────────────
+// hintBtn now calls openHint() via onclick attr; pulse effect lives in openHint
+// (old inline listener removed to avoid double-firing)
+
+// ─── TOUCH SUPPORT ────────────────────────────────────────
+let touchSrc = null;
+
+function onTouchStart(e) {
+  touchSrc = this;
+  this.classList.add('dragging');
+}
+
+function onTouchEnd(e) {
+  e.preventDefault();
+  if (!touchSrc || solved) { touchSrc = null; return; }
+  // find target under finger
+  const touch = e.changedTouches[0];
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  const targetPiece = target ? target.closest('.puzzle-piece') : null;
+
+  if (targetPiece && targetPiece !== touchSrc) {
+    const fromIdx = parseInt(touchSrc.dataset.current);
+    const toIdx   = parseInt(targetPiece.dataset.current);
+    [pieces[fromIdx], pieces[toIdx]] = [pieces[toIdx], pieces[fromIdx]];
+    moves++;
+    document.getElementById('statMoves').textContent = moves;
+    addLog(`SWAP [${String(fromIdx).padStart(2,'0')}]↔[${String(toIdx).padStart(2,'0')}]`);
+    renderGrid();
+    checkProgress();
+  }
+  touchSrc.classList.remove('dragging');
+  touchSrc = null;
+}
+
+// ─── COLLAGE GENERATOR ────────────────────────────────────
+// Stores the scrambled snapshot at puzzle start
+let scrambledSnapshot = null;
+let collageAnimFrame = null;
+let collageAnimStart = null;
+
+function captureScrambledSnapshot() {
+  const n = gridSize;
+  const size = 512;
+  const snap = document.createElement('canvas');
+  snap.width = snap.height = size;
+  const ctx = snap.getContext('2d');
+  ctx.fillStyle = '#0c0c0c';
+  ctx.fillRect(0, 0, size, size);
+  const pieceSize = size / n;
+  const gap = 2;
+  pieces.forEach((correctIdx, currentIdx) => {
+    const col = currentIdx % n;
+    const row = Math.floor(currentIdx / n);
+    ctx.drawImage(pieceCanvases[correctIdx],
+      col * pieceSize + gap, row * pieceSize + gap,
+      pieceSize - gap * 2, pieceSize - gap * 2);
+  });
+  scrambledSnapshot = snap;
+}
+
+function drawCollageFrame(t) {
+  const col = document.getElementById('collageCanvas');
+  const W = col.width, H = col.height;
+  const ctx = col.getContext('2d');
+
+  // ── BACKGROUND ──
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  // scanlines
+  for (let y = 0; y < H; y += 3) {
+    ctx.fillStyle = y % 6 === 0 ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.05)';
+    ctx.fillRect(0, y, W, 1);
+  }
+
+  const pad = 32;
+  const topBar = 44;
+  const bottomBar = 36;
+  const imgY = topBar + pad;
+  const imgH = H - topBar - bottomBar - pad * 2;
+  const half = (W - pad * 3) / 2;
+
+  // ── TOP: animated pixel block header ──
+  const blockW = 14, blockGap = 5, blocks = 10;
+  const totalBlocksW = blocks * (blockW + blockGap) - blockGap;
+  const bx0 = (W - totalBlocksW) / 2;
+  for (let i = 0; i < blocks; i++) {
+    const bx = bx0 + i * (blockW + blockGap);
+    const highlight = Math.abs(Math.sin(t * 0.0015 + i * 0.4)) > 0.6;
+    ctx.fillStyle = highlight ? '#a8ff3e' : '#1e1e1e';
+    ctx.fillRect(bx, 12, blockW, 8);
+  }
+
+  // ── LEFT IMAGE: SCRAMBLED ──
+  const lx = pad;
+  const glitchAmt = Math.sin(t * 0.003) > 0.75 ? (Math.random() * 6 - 3) : 0;
+  const revealL = Math.min(1, Math.max(0, (t - 200) / 600));
+
+  if (scrambledSnapshot) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(lx, imgY, half * revealL, imgH);
+    ctx.clip();
+    ctx.drawImage(scrambledSnapshot, lx + glitchAmt, imgY, half, imgH);
+    if (Math.abs(glitchAmt) > 1) {
+      ctx.globalAlpha = 0.12;
+      ctx.drawImage(scrambledSnapshot, lx + glitchAmt * 4, imgY + imgH * 0.28, half, imgH * 0.14);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  // crimson border, pulsing
+  ctx.strokeStyle = `rgba(204,34,0,${0.3 + 0.2 * Math.sin(t * 0.002)})`;
+  ctx.lineWidth = 1;
+  ctx.shadowColor = '#cc2200';
+  ctx.shadowBlur = 8 + 4 * Math.sin(t * 0.002);
+  ctx.strokeRect(lx, imgY, half, imgH);
+  ctx.shadowBlur = 0;
+
+  ctx.font = '700 10px "Share Tech Mono", monospace';
+  ctx.fillStyle = '#cc2200';
+  ctx.textAlign = 'left';
+  ctx.fillText('FRAGMENTED', lx, imgY - 8);
+
+  // ── CENTRE ARROW ──
+  const midX = lx + half + pad * 0.5 + pad * 0.5;
+  const arrowAlpha = 0.5 + 0.5 * Math.sin(t * 0.004);
+  ctx.font = 'bold 18px monospace';
+  ctx.fillStyle = `rgba(168,255,62,${arrowAlpha})`;
+  ctx.textAlign = 'center';
+  ctx.fillText('→', midX, H / 2 + 6);
+
+  // ── RIGHT IMAGE: RESTORED ──
+  const rx = lx + half + pad;
+  const revealR = Math.min(1, Math.max(0, (t - 500) / 700));
+
+  if (originalImage) {
+    const min = Math.min(originalImage.width, originalImage.height);
+    const sx0 = (originalImage.width - min) / 2;
+    const sy0 = (originalImage.height - min) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rx, imgY, half * revealR, imgH);
+    ctx.clip();
+    ctx.drawImage(originalImage, sx0, sy0, min, min, rx, imgY, half, imgH);
+    ctx.restore();
+  }
+
+  // green glow border
+  ctx.strokeStyle = `rgba(168,255,62,${0.3 + 0.15 * Math.sin(t * 0.0025 + 1)})`;
+  ctx.lineWidth = 1;
+  ctx.shadowColor = '#a8ff3e';
+  ctx.shadowBlur = 10 + 6 * Math.sin(t * 0.002);
+  ctx.strokeRect(rx, imgY, half, imgH);
+  ctx.shadowBlur = 0;
+
+  ctx.font = '700 10px "Share Tech Mono", monospace';
+  ctx.fillStyle = '#a8ff3e';
+  ctx.textAlign = 'left';
+  ctx.fillText('RESTORED', rx, imgY - 8);
+
+  // ── CORNER CROSSHAIRS ──
+  const ch = 9;
+  ctx.strokeStyle = 'rgba(168,255,62,0.2)';
+  ctx.lineWidth = 1;
+  [[lx,imgY],[lx+half,imgY],[lx,imgY+imgH],[lx+half,imgY+imgH],
+   [rx,imgY],[rx+half,imgY],[rx,imgY+imgH],[rx+half,imgY+imgH]].forEach(([cx,cy]) => {
+    ctx.beginPath();
+    ctx.moveTo(cx-ch,cy); ctx.lineTo(cx+ch,cy);
+    ctx.moveTo(cx,cy-ch); ctx.lineTo(cx,cy+ch);
+    ctx.stroke();
+  });
+
+  // ── BOTTOM BAR ──
+  const barY = H - bottomBar + 12;
+  ctx.font = '700 15px "Bebas Neue", sans-serif';
+  ctx.fillStyle = '#e8e4db';
+  ctx.textAlign = 'left';
+  ctx.fillText('R3ORDR', pad, barY);
+  ctx.font = '8px "Share Tech Mono", monospace';
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillText('PUZZLE PROTOCOL', pad, barY + 13);
+
+  const s = Math.floor(elapsed / 1000);
+  const mm = Math.floor(s / 60);
+  const timeStr = `${String(mm).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  ctx.font = '9px "Share Tech Mono", monospace';
+  ctx.fillStyle = '#a8ff3e';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${moves} MOVES  //  ${timeStr}  //  ${gridSize}×${gridSize} GRID`, W / 2, barY + 6);
+
+  ctx.font = '8px "Share Tech Mono", monospace';
+  ctx.fillStyle = '#333';
+  ctx.textAlign = 'right';
+  ctx.fillText('@R3ORDR', W - pad, barY);
+  ctx.fillText('@Frankkwebb3', W - pad, barY + 13);
+}
+
+function startCollageAnimation() {
+  const col = document.getElementById('collageCanvas');
+  col.width = 900; col.height = 460;
+  collageAnimStart = performance.now();
+
+  function tick(now) {
+    drawCollageFrame(now - collageAnimStart);
+    collageAnimFrame = requestAnimationFrame(tick);
+  }
+  collageAnimFrame = requestAnimationFrame(tick);
+  document.getElementById('collageWrap').style.display = 'block';
+}
+
+function stopCollageAnimation() {
+  if (collageAnimFrame) { cancelAnimationFrame(collageAnimFrame); collageAnimFrame = null; }
+}
+
+// ─── X (TWITTER) SHARE ────────────────────────────────────
+document.getElementById('shareXBtn').addEventListener('click', () => {
+  const text = `Solved the scrambled R3ORDR. Signals realigned.\n@R3ORDR\n@Frankkwebb3`;
+  const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+  // Show toast tip
+  const toast = document.getElementById('xToast');
+  toast.classList.add('show');
+  // Open X after a brief beat so user sees the tip first
+  setTimeout(() => {
+    window.open(url, '_blank', 'noopener,width=600,height=440');
+  }, 380);
+});
+
+// ─── DOWNLOAD IMAGE (static PNG) ─────────────────────────
+function downloadStaticImage() {
+  const col = document.getElementById('collageCanvas');
+  stopCollageAnimation();
+  drawCollageFrame(2000);
+  const link = document.createElement('a');
+  link.download = `r3ordr-signal-restored-${gridSize}x${gridSize}.png`;
+  link.href = col.toDataURL('image/png');
+  link.click();
+  // resume animation
+  collageAnimStart = performance.now() - 2000;
+  function tick(now) {
+    drawCollageFrame(now - collageAnimStart);
+    collageAnimFrame = requestAnimationFrame(tick);
+  }
+  collageAnimFrame = requestAnimationFrame(tick);
+}
+
+document.getElementById('downloadBtn').addEventListener('click', downloadStaticImage);
+document.getElementById('toastDlBtn').addEventListener('click', downloadStaticImage);
+
+// ─── DOWNLOAD ANIMATION (MP4 for X) ─────────────────────
+document.getElementById('downloadGifBtn').addEventListener('click', () => {
+  const btn = document.getElementById('downloadGifBtn');
+  const col = document.getElementById('collageCanvas');
+
+  if (!window.MediaRecorder) {
+    btn.innerHTML = 'NOT SUPPORTED<span class="btn-sub">use PNG instead</span>';
+    setTimeout(() => { btn.innerHTML = 'ANIMATION<span class="btn-sub">WEBM · video</span>'; }, 2500);
+    return;
+  }
+
+  // X accepts mp4 (h264) best — try mp4 first, fall back to webm
+  const mp4Types = ['video/mp4;codecs=avc1','video/mp4'];
+  const webmTypes = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  const allTypes = [...mp4Types, ...webmTypes];
+  const mimeType = allTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+  const isMP4 = mimeType.startsWith('video/mp4');
+  const ext = isMP4 ? 'mp4' : 'webm';
+
+  // Restart animation from t=0 for clean capture
+  stopCollageAnimation();
+  collageAnimStart = performance.now();
+
+  const stream = col.captureStream(30);
+  const recorder = new MediaRecorder(stream, {
+    mimeType,
+    videoBitsPerSecond: 8_000_000  // 8Mbps — well within X's 512MB limit
+  });
+  const chunks = [];
+
+  recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: mimeType });
+    const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `r3ordr-animation-${gridSize}x${gridSize}.${ext}`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 8000);
+
+    btn.innerHTML = `ANIMATION<span class="btn-sub">${ext.toUpperCase()} · ${sizeMB}MB</span>`;
+    btn.disabled = false;
+
+    // Resume live animation
+    collageAnimStart = performance.now() - 2800;
+    function tick(now) {
+      drawCollageFrame(now - collageAnimStart);
+      collageAnimFrame = requestAnimationFrame(tick);
+    }
+    collageAnimFrame = requestAnimationFrame(tick);
+  };
+
+  // Record 5 seconds — enough for X to accept as a proper video
+  const recDuration = 5000;
+
+  btn.innerHTML = '<span class="rec-ring"></span>RECORDING...<span class="btn-sub">5s capture</span>';
+  btn.disabled = true;
+
+  recorder.start(100); // collect data every 100ms
+
+  function recTick(now) {
+    const t = now - collageAnimStart;
+    // Loop the animation: after 3s restart from 0 for a second pass
+    drawCollageFrame(t > 3000 ? t - 3000 : t);
+    if (t < recDuration) {
+      collageAnimFrame = requestAnimationFrame(recTick);
+    } else {
+      recorder.stop();
+    }
+  }
+  collageAnimFrame = requestAnimationFrame(recTick);
+});
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!originalImage) return;
+  stopCollageAnimation();
+  solved = false;
+  moves = 0;
+  scrambledSnapshot = null;
+  document.getElementById('collageWrap').style.display = 'none';
+  document.getElementById('xToast').classList.remove('show');
+  resetTimer();
+  document.getElementById('statMoves').textContent = '0';
+  document.getElementById('statSolved').textContent = '0';
+  document.getElementById('statPieces').textContent = '—';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressLabel').textContent = '0 / 0';
+  document.getElementById('progressPct').textContent = '00%';
+  document.getElementById('progressPct').style.color = '#222';
+  document.getElementById('puzzleGrid').style.display = 'none';
+  document.getElementById('puzzleGrid').innerHTML = '';
+  document.getElementById('emptyState').style.display = 'block';
+  addLog('PROTOCOL RESET', 'err');
+});
+
+// ─── PLAY AGAIN ───────────────────────────────────────────
+document.getElementById('playAgainBtn').addEventListener('click', () => {
+  stopCollageAnimation();
+  document.getElementById('solveOverlay').classList.remove('show');
+  document.getElementById('collageWrap').style.display = 'none';
+  document.getElementById('xToast').classList.remove('show');
+  if (originalImage) buildPuzzle();
+});
+
+// ══════════════════════════════════════════════════════════════
+// UI UTILITIES — HINT, LOG TOGGLE, CHANGE IMAGE, FLOAT BAR
+// ══════════════════════════════════════════════════════════════
+
+let hintPinned = false;
+
+function openHint() {
+  if (!originalImage) return;
+  const modal = document.getElementById('hintModal');
+  const hc = document.getElementById('hintCanvas');
+  hc.width = originalImage.width;
+  hc.height = originalImage.height;
+  hc.getContext('2d').drawImage(originalImage, 0, 0);
+  modal.classList.add('show');
+}
+
+document.getElementById('hintCloseBtn').addEventListener('click', () => {
+  hintPinned = false;
+  document.getElementById('hintPinBtn').classList.remove('pinned');
+  document.getElementById('hintPinBtn').textContent = 'KEEP HINT OPEN';
+  document.getElementById('hintModal').classList.remove('show');
+});
+
+document.getElementById('hintPinBtn').addEventListener('click', () => {
+  hintPinned = !hintPinned;
+  const btn = document.getElementById('hintPinBtn');
+  if (hintPinned) {
+    btn.classList.add('pinned');
+    btn.textContent = '// HINT PINNED — CLICK TO UNPIN';
+  } else {
+    btn.classList.remove('pinned');
+    btn.textContent = 'KEEP HINT OPEN';
+  }
+});
+
+document.getElementById('hintModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('hintModal') && !hintPinned) {
+    document.getElementById('hintModal').classList.remove('show');
+  }
+});
+
+function toggleLog() {
+  const entries = document.getElementById('logEntries');
+  const btn = document.getElementById('logToggleBtn');
+  const collapsed = entries.classList.toggle('collapsed');
+  btn.textContent = collapsed ? 'SHOW ▾' : 'HIDE ▴';
+}
+
+function showOnboarding() {
+  const overlay = document.getElementById('onboardingOverlay');
+  overlay.style.display = 'flex';
+  overlay.style.opacity = '1';
+  overlay.classList.remove('fade-out');
+}
+
+function floatFragment() {
+  document.getElementById('scrambleBtn').click();
+}
+
+function setGridFromFloat(size) {
+  document.querySelectorAll('.float-btn[data-size]').forEach(b => {
+    b.style.borderColor = '#2a2a2a'; b.style.color = '#666';
+  });
+  const active = document.querySelector('.float-btn[data-size="' + size + '"]');
+  if (active) { active.style.borderColor = '#a8ff3e'; active.style.color = '#a8ff3e'; }
+  const desktopBtn = document.querySelector('.grid-btn[data-size="' + size + '"]');
+  if (desktopBtn) desktopBtn.click();
+}
+
+// Signal Loaded Modal — fragment btn
+document.getElementById('slFragmentBtn').addEventListener('click', () => {
+  document.getElementById('signalLoadedModal').classList.remove('show');
+  setTimeout(() => { if (originalImage) document.getElementById('scrambleBtn').click(); }, 120);
+});
+
+document.getElementById('signalLoadedModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('signalLoadedModal'))
+    document.getElementById('signalLoadedModal').classList.remove('show');
+});
+
+// Sync scrambleBtn enabled state to float bar btn
+const _origScrambleObserver = new MutationObserver(() => {
+  const sb = document.getElementById('scrambleBtn');
+  const fb = document.getElementById('floatFragmentBtn');
+  if (fb) fb.disabled = sb.disabled;
+});
+_origScrambleObserver.observe(document.getElementById('scrambleBtn'), { attributes: true, attributeFilter: ['disabled'] });
+
+// ══════════════════════════════════════════════════════════════
+// ONBOARDING — MULTI-PAGE FLOW + PROMPT VAULT
+// ══════════════════════════════════════════════════════════════
+(function () {
+  const $ = id => document.getElementById(id);
+
+  // ── current pfp url (for download buttons) ───────────────
+  let _pfpUrl = '';
+  let _pendingDataUrl = '';
+
+  // ── page navigation ──────────────────────────────────────
+  window.obGoPage = function(n) {
+    document.querySelectorAll('.ob-page').forEach(p => p.classList.remove('active'));
+    $('obPage' + n).classList.add('active');
+    $('onboardingOverlay').scrollTop = 0;
+  };
+
+  // ── status helpers ───────────────────────────────────────
+  function setStatus(msg, type) {
+    const el = $('obStatus');
+    el.className = 'ob-status ' + type;
+    el.innerHTML = msg;
+  }
+  function hideStatus() { $('obStatus').className = 'ob-status'; }
+
+  function showPfpResult(src, handle) {
+    _pfpUrl = src;
+    $('obPfpImg').src = src;
+    $('obPfpHandle').textContent = handle.startsWith('@') ? handle : '@' + handle;
+    $('obPfpResult').style.display = 'flex';
+    // enable download buttons in vault
+    ['obDlBtn1','obDlBtn2','obDlBtn3','obDlBtn4'].forEach(id => {
+      const b = $(id); if (b) b.disabled = false;
+    });
+    hideStatus();
+  }
+  function hidePfpResult() { $('obPfpResult').style.display = 'none'; }
+
+  function showReject() {
+    $('obRejectPanel').style.display = 'flex';
+    $('obUploadZone').style.display = 'none';
+    hideStatus();
+  }
+  function hideReject() {
+    $('obRejectPanel').style.display = 'none';
+    $('obUploadZone').style.display = 'block';
+  }
+
+  // ── launch puzzle ─────────────────────────────────────────
+  function launchPuzzle(dataUrl, pfpSrc) {
+    const overlay = $('onboardingOverlay');
+    const img = new Image();
+    img.onload = () => {
+      originalImage = img;
+      drawPreview(img);
+      document.getElementById('scrambleBtn').disabled = false;
+      const ffb = document.getElementById('floatFragmentBtn');
+      if (ffb) ffb.disabled = false;
+      document.getElementById('emptyState').style.display = 'none';
+      addLog('SIGNAL LOADED VIA ONBOARDING PROTOCOL', 'new');
+
+      overlay.classList.add('fade-out');
+      setTimeout(() => { overlay.style.display = 'none'; }, 600);
+
+      // Signal Loaded modal
+      $('slPfpImg').src = pfpSrc || dataUrl;
+      $('signalLoadedModal').classList.add('show');
+    };
+    img.src = dataUrl;
+  }
+
+  // ── fetch X PFP ───────────────────────────────────────────
+  async function fetchXPfp(username) {
+    const clean = username.replace(/^@/, '').trim();
+    if (!clean) return;
+    $('obFetchBtn').disabled = true;
+    hidePfpResult();
+    hideReject();
+    setStatus('<span class="ob-spinner"></span>SCANNING X SIGNAL...', 'loading');
+
+    const avatarUrl = 'https://unavatar.io/x/' + encodeURIComponent(clean);
+
+    try {
+      await new Promise((res, rej) => {
+        const t = new Image();
+        t.onload = res; t.onerror = rej;
+        t.src = avatarUrl + '?nc=' + Date.now();
+        setTimeout(rej, 9000);
+      });
+
+      setStatus('// PROFILE LOCATED //', 'success');
+      showPfpResult(avatarUrl, clean);
+      $('obFetchBtn').disabled = false;
+
+      $('obUsePfpBtn').onclick = () => usePfp(avatarUrl);
+
+    } catch (_) {
+      setStatus('// NO SIGNAL FOUND — CHECK USERNAME //', 'error');
+      $('obFetchBtn').disabled = false;
+    }
+  }
+
+  function usePfp(avatarUrl) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 400;
+      c.getContext('2d').drawImage(img, 0, 0, 400, 400);
+      let du;
+      try { du = c.toDataURL('image/jpeg', 0.92); }
+      catch (_) { du = avatarUrl; }
+      launchPuzzle(du, avatarUrl);
+    };
+    img.onerror = () => launchPuzzle(avatarUrl, avatarUrl);
+    img.src = avatarUrl + '?nc=' + Date.now();
+  }
+
+  // ── fetch + enter key ─────────────────────────────────────
+  $('obFetchBtn').addEventListener('click', () => {
+    const v = $('obUsernameInput').value.trim();
+    if (v) fetchXPfp(v);
+  });
+  $('obUsernameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { const v = $('obUsernameInput').value.trim(); if (v) fetchXPfp(v); }
+  });
+
+  // ── Vault button ──────────────────────────────────────────
+  $('obOpenVaultBtn').addEventListener('click', () => obGoPage(2));
+
+  // ── Upload ────────────────────────────────────────────────
+  const obFileInput = $('obFileInput');
+  const obTrigger   = $('obUploadTrigger');
+  if (obTrigger) obTrigger.addEventListener('click', () => obFileInput.click());
+
+  obFileInput.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) validateAndLaunch(f);
+    obFileInput.value = '';
+  });
+
+  function validateAndLaunch(file) {
+    hideReject();
+    setStatus('<span class="ob-spinner"></span>AUTHENTICATING R3ORDR SIGNAL...', 'loading');
+    const reader = new FileReader();
+    reader.onload = ev => {
+      _pendingDataUrl = ev.target.result;
+      const img = new Image();
+      img.onload = async () => {
+        const sig = analyzeR3ordrSignature(img);
+
+        if (sig.score === 0 && !sig.pass) {
+          hideStatus();
+          showObReject(sig.reason);
+          return;
+        }
+
+        if (!sig.pass && sig.score >= 40) {
+          setStatus('<span class="ob-spinner"></span>RUNNING DEEP SIGNAL SCAN...', 'loading');
+          const boost = await _runVisionBoost(img);
+          sig.score = Math.min(100, sig.score + boost);
+          sig.pass  = sig.score >= 82;
+        }
+
+        if (!sig.pass) {
+          hideStatus();
+          showObReject(sig.reason || ('SIGNAL SCORE ' + sig.score + '/100 — BELOW PROTOCOL THRESHOLD (82)'));
+        } else {
+          hideStatus();
+          launchPuzzle(ev.target.result);
+        }
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function showObReject(reason) {
+    const msg = $('obRejectPanel').querySelector('.ob-reject-msg');
+    if (msg) msg.innerHTML =
+      'This is not a valid R3ORDR signal.<br>Please upload an image generated with the official<br>R3ORDR protocol prompt — deep black/off-white collage<br>with market fragments and protocol text.<br><br><span style="color:#cc2200;font-size:7px;">' + (reason || '') + '</span>';
+    showReject();
+  }
+
+  $('obRetryBtn').addEventListener('click', () => { hideReject(); hideStatus(); });
+
+  // ── Prompt Vault helpers (global so inline onclick works) ──
+  window.obExpandPrompt = function(id, btn) {
+    const el = $(id);
+    const exp = el.classList.toggle('expanded');
+    btn.textContent = exp ? 'COLLAPSE ▴' : 'EXPAND PROMPT ▾';
+  };
+
+  window.obCopyPrompt = function(id, btn) {
+    const text = $(id).textContent.trim();
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'COPIED ✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'COPY PROMPT'; btn.classList.remove('copied'); }, 2200);
+      // Show copied modal
+      $('obCopiedModal').classList.add('show');
+    }).catch(() => {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = 'COPIED ✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'COPY PROMPT'; btn.classList.remove('copied'); }, 2200);
+      $('obCopiedModal').classList.add('show');
+    });
+  };
+
+  window.obDownloadPfp = function() {
+    if (!_pfpUrl) { alert('Fetch your X PFP first on Step 1'); return; }
+    const a = document.createElement('a');
+    a.href = _pfpUrl;
+    a.download = 'r3ordr_pfp_reference.jpg';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // ── Copied modal buttons ──────────────────────────────────
+  $('obContinueBtn').addEventListener('click', () => {
+    $('obCopiedModal').classList.remove('show');
+    // If we have a pending valid image, use it; else use PFP if available
+    if (originalImage) {
+      // already loaded — just close onboarding
+      $('onboardingOverlay').classList.add('fade-out');
+      setTimeout(() => { $('onboardingOverlay').style.display = 'none'; }, 600);
+      $('signalLoadedModal').classList.add('show');
+    }
+  });
+
+  $('obNewImgBtn').addEventListener('click', () => {
+    $('obCopiedModal').classList.remove('show');
+    // Go back to page 1, trigger upload
+    obGoPage(1);
+    setTimeout(() => obFileInput.click(), 200);
+  });
+
+  // disable download btns until PFP is fetched
+  ['obDlBtn1','obDlBtn2','obDlBtn3','obDlBtn4'].forEach(id => {
+    const b = $(id);
+    if (b) { b.disabled = true; b.title = 'Fetch your X PFP first'; }
+  });
+
+})();
+</script>
+</body>
+</html>
